@@ -16,10 +16,14 @@
  */
 package org.apache.rocketmq.common;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.Inet4Address;
@@ -36,13 +40,97 @@ import java.util.Map;
 import java.util.zip.CRC32;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
-
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
 public class UtilAll {
+
+    static boolean hasNative = false;
+
+    enum OS {
+        Linux,
+        Mac,
+        Windows
+    }
+
+    static OS getOperationSystemType() {
+        String osName = System.getProperty("os.name");
+        if (osName.contains("Mac")) {
+            return OS.Mac;
+        }
+
+        if (osName.contains("Linux")) {
+            return OS.Linux;
+        }
+
+        return OS.Windows;
+    }
+
+    static boolean loadLibrary(String libraryName) {
+        OS os = getOperationSystemType();
+        String extension;
+        String prefix;
+        switch (os) {
+            case Mac:
+                prefix = "lib";
+                extension = ".dylib";
+                break;
+            case Linux:
+                prefix = "lib";
+                extension = ".so";
+                break;
+            case Windows:
+                prefix = "";
+                extension = ".dll";
+                break;
+            default:
+                prefix = "lib";
+                extension = ".so";
+                break;
+        }
+
+        InputStream inputStream = UtilAll.class.getClassLoader().getResourceAsStream(prefix + libraryName + extension);
+        if (null == inputStream) {
+            return false;
+        }
+
+        BufferedOutputStream bos = null;
+        BufferedInputStream bis = null;
+        try {
+            File lib = File.createTempFile(libraryName, extension);
+            lib.deleteOnExit();
+            bos = new BufferedOutputStream(new FileOutputStream(lib));
+            bis = new BufferedInputStream(inputStream);
+            byte[] buffer = new byte[1024];
+            int len = 0;
+            while ((len = bis.read(buffer)) > 0) {
+                bos.write(buffer, 0, len);
+            }
+            bos.flush();
+            System.load(lib.getAbsolutePath());
+            return true;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            try {
+                if (null != bos) {
+                    bos.close();
+                }
+
+                if (null != bis) {
+                    bis.close();
+                }
+            } catch (IOException ignore) {
+            }
+        }
+    }
+
+    static {
+        hasNative = loadLibrary("rocketmq_util_all");
+    }
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
     public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
@@ -51,14 +139,20 @@ public class UtilAll {
     final static char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
     public static int getPid() {
-        RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
-        String name = runtime.getName(); // format: "pid@hostname"
-        try {
-            return Integer.parseInt(name.substring(0, name.indexOf('@')));
-        } catch (Exception e) {
-            return -1;
+        if (hasNative) {
+            return get_pid();
+        } else {
+            RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
+            String name = runtime.getName(); // format: "pid@hostname"
+            try {
+                return Integer.parseInt(name.substring(0, name.indexOf('@')));
+            } catch (Exception e) {
+                return -1;
+            }
         }
     }
+
+    public static native int get_pid();
 
     public static void sleep(long sleepMs) {
         if (sleepMs < 0) {

@@ -98,6 +98,11 @@ public class UtilAllTest {
         assertThat(UtilAll.isBlank("Hello")).isFalse();
     }
 
+    @Test(timeout = 200)
+    public void testGetPid_Perf() {
+        UtilAll.getPid();
+    }
+
     static class DemoConfig {
         private int demoWidth = 0;
         private int demoLength = 0;
