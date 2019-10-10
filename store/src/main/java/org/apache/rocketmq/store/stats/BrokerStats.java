@@ -16,12 +16,18 @@
  */
 package org.apache.rocketmq.store.stats;
 
+import org.apache.rocketmq.common.ConfigManager;
 import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.common.protocol.body.BrokerStatsWrapper;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.DefaultMessageStore;
 
-public class BrokerStats {
+import java.io.File;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+public class BrokerStats extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
     private final DefaultMessageStore defaultMessageStore;
@@ -33,6 +39,8 @@ public class BrokerStats {
     private volatile long msgGetTotalYesterdayMorning;
 
     private volatile long msgGetTotalTodayMorning;
+
+    private static String statsFilePath = System.getProperty("user.home") + File.separator + "stats";
 
     public BrokerStats(DefaultMessageStore defaultMessageStore) {
         this.defaultMessageStore = defaultMessageStore;
@@ -89,5 +97,64 @@ public class BrokerStats {
 
     public long getMsgGetTotalTodayNow() {
         return this.defaultMessageStore.getStoreStatsService().getGetMessageTransferedMsgCount().get();
+    }
+
+    public static void setStatsFilePath(String path)
+    {
+        statsFilePath = path;
+    }
+
+    @Override
+    public String encode() {
+        return this.encode(false);
+    }
+
+    @Override
+    public String configFilePath() {
+        return statsFilePath + File.separator + "brokerStats.json";
+    }
+
+    @Override
+    public void decode(String jsonString) {
+        if (jsonString != null) {
+            try {
+                BrokerStatsWrapper brokerStatsWrapper =
+                        BrokerStatsWrapper.fromJson(jsonString, BrokerStatsWrapper.class);
+                if (brokerStatsWrapper != null) {
+                    this.setMsgPutTotalYesterdayMorning(brokerStatsWrapper.getMsgPutTotalYesterdayMorning());
+                    this.setMsgGetTotalYesterdayMorning(brokerStatsWrapper.getMsgGetTotalYesterdayMorning());
+                    this.setMsgPutTotalTodayMorning(brokerStatsWrapper.getMsgPutTotalTodayMorning());
+                    this.setMsgGetTotalTodayMorning(brokerStatsWrapper.getMsgGetTotalTodayMorning());
+
+
+                    DefaultMessageStore defaultMessageStore = this.defaultMessageStore;
+                    defaultMessageStore.getStoreStatsService().getGetMessageTransferedMsgCount().set(brokerStatsWrapper.getGetMessageTransferedMsgCount());
+                    defaultMessageStore.getStoreStatsService().getPutMessageTopicTimesTotal().putAll(brokerStatsWrapper.getPutMessageTopicTimesTotal());
+                }
+            } catch (Exception e) {
+                log.info("{}", e);
+            }
+        }
+    }
+
+    @Override
+    public String encode(boolean prettyFormat) {
+        BrokerStatsWrapper brokerStatsWrapper = new BrokerStatsWrapper();
+        brokerStatsWrapper.setMsgPutTotalYesterdayMorning(this.getMsgPutTotalYesterdayMorning());
+        brokerStatsWrapper.setMsgGetTotalYesterdayMorning(this.getMsgGetTotalYesterdayMorning());
+        brokerStatsWrapper.setMsgPutTotalTodayMorning(this.getMsgPutTotalTodayMorning());
+        brokerStatsWrapper.setMsgGetTotalTodayMorning(this.getMsgGetTotalTodayMorning());
+
+        try {
+            DefaultMessageStore defaultMessageStore = this.defaultMessageStore;
+            long getMessageTransferMsgCount = defaultMessageStore.getStoreStatsService().getGetMessageTransferedMsgCount().get();
+            brokerStatsWrapper.setGetMessageTransferedMsgCount(getMessageTransferMsgCount);
+
+            Map<String, AtomicLong> putMessageTopicTimesTotal = defaultMessageStore.getStoreStatsService().getPutMessageTopicTimesTotal();
+            brokerStatsWrapper.getPutMessageTopicTimesTotal().putAll(putMessageTopicTimesTotal);
+        } catch (Exception e) {
+            log.info("{}", e);
+        }
+        return brokerStatsWrapper.toJson(prettyFormat);
     }
 }

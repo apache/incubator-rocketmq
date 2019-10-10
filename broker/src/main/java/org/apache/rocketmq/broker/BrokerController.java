@@ -33,6 +33,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.rocketmq.acl.AccessValidator;
 import org.apache.rocketmq.broker.client.ClientHousekeepingService;
 import org.apache.rocketmq.broker.client.ConsumerIdsChangeListener;
@@ -163,7 +164,7 @@ public class BrokerController {
     private TransactionalMessageService transactionalMessageService;
     private AbstractTransactionalMessageCheckListener transactionalMessageCheckListener;
     private Future<?> slaveSyncFuture;
-    private Map<Class,AccessValidator> accessValidatorMap = new HashMap<Class, AccessValidator>();
+    private Map<Class, AccessValidator> accessValidatorMap = new HashMap<Class, AccessValidator>();
 
     public BrokerController(
         final BrokerConfig brokerConfig,
@@ -241,9 +242,10 @@ public class BrokerController {
                         this.brokerConfig);
                 if (messageStoreConfig.isEnableDLegerCommitLog()) {
                     DLedgerRoleChangeHandler roleChangeHandler = new DLedgerRoleChangeHandler(this, (DefaultMessageStore) messageStore);
-                    ((DLedgerCommitLog)((DefaultMessageStore) messageStore).getCommitLog()).getdLedgerServer().getdLedgerLeaderElector().addRoleChangeHandler(roleChangeHandler);
+                    ((DLedgerCommitLog) ((DefaultMessageStore) messageStore).getCommitLog()).getdLedgerServer().getdLedgerLeaderElector().addRoleChangeHandler(roleChangeHandler);
                 }
                 this.brokerStats = new BrokerStats((DefaultMessageStore) this.messageStore);
+                brokerStats.load();
                 //load plugin
                 MessageStorePluginContext context = new MessageStorePluginContext(messageStoreConfig, brokerStatsManager, messageArrivingListener, brokerConfig);
                 this.messageStore = MessageStoreFactory.build(context, this.messageStore);
@@ -501,9 +503,9 @@ public class BrokerController {
             return;
         }
 
-        for (AccessValidator accessValidator: accessValidators) {
+        for (AccessValidator accessValidator : accessValidators) {
             final AccessValidator validator = accessValidator;
-            accessValidatorMap.put(validator.getClass(),validator);
+            accessValidatorMap.put(validator.getClass(), validator);
             this.registerServerRPCHook(new RPCHook() {
 
                 @Override
@@ -519,14 +521,13 @@ public class BrokerController {
         }
     }
 
-
     private void initialRpcHooks() {
 
         List<RPCHook> rpcHooks = ServiceProvider.load(ServiceProvider.RPC_HOOK_ID, RPCHook.class);
         if (rpcHooks == null || rpcHooks.isEmpty()) {
             return;
         }
-        for (RPCHook rpcHook: rpcHooks) {
+        for (RPCHook rpcHook : rpcHooks) {
             this.registerServerRPCHook(rpcHook);
         }
     }
@@ -807,6 +808,15 @@ public class BrokerController {
         if (this.endTransactionExecutor != null) {
             this.endTransactionExecutor.shutdown();
         }
+
+        if (brokerStats != null) {
+            try {
+                brokerStats.persist();
+            } catch (Exception e) {
+                log.info("{}", e);
+            }
+        }
+
     }
 
     private void unregisterBrokerAll() {
@@ -859,8 +869,6 @@ public class BrokerController {
             handleSlaveSynchronize(messageStoreConfig.getBrokerRole());
         }
 
-
-
         this.registerBrokerAll(true, false, true);
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
@@ -875,6 +883,21 @@ public class BrokerController {
             }
         }, 1000 * 10, Math.max(10000, Math.min(brokerConfig.getRegisterNameServerPeriod(), 60000)), TimeUnit.MILLISECONDS);
 
+        long initialDelay = UtilAll.computeNextHourTimeMillis() - System.currentTimeMillis();
+        this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                if (brokerStats != null) {
+                    try {
+                        brokerStats.persist();
+                    } catch (Exception e) {
+                        log.info("{}", e);
+                    }
+                }
+            }
+
+        }, initialDelay, 60 * 60 * 1000, TimeUnit.MILLISECONDS);
+
         if (this.brokerStatsManager != null) {
             this.brokerStatsManager.start();
         }
@@ -882,7 +905,6 @@ public class BrokerController {
         if (this.brokerFastFailure != null) {
             this.brokerFastFailure.start();
         }
-
 
     }
 
@@ -1097,7 +1119,6 @@ public class BrokerController {
         this.transactionalMessageCheckListener = transactionalMessageCheckListener;
     }
 
-
     public BlockingQueue<Runnable> getEndTransactionThreadPoolQueue() {
         return endTransactionThreadPoolQueue;
 
@@ -1118,8 +1139,7 @@ public class BrokerController {
                 public void run() {
                     try {
                         BrokerController.this.slaveSynchronize.syncAll();
-                    }
-                    catch (Throwable e) {
+                    } catch (Throwable e) {
                         log.error("ScheduledTask SlaveSynchronize syncAll error.", e);
                     }
                 }
@@ -1164,8 +1184,6 @@ public class BrokerController {
         }
         log.info("Finish to change to slave brokerName={} brokerId={}", brokerConfig.getBrokerName(), brokerId);
     }
-
-
 
     public void changeToMaster(BrokerRole role) {
         if (role == BrokerRole.SLAVE) {
@@ -1215,7 +1233,5 @@ public class BrokerController {
             this.transactionalMessageCheckService.shutdown(true);
         }
     }
-
-
 
 }
