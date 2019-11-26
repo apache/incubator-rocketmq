@@ -17,11 +17,11 @@
 
 package org.apache.rocketmq.store;
 
+import java.util.List;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 
 public class MultiPathMappedFileQueueTest {
 
@@ -30,15 +30,15 @@ public class MultiPathMappedFileQueueTest {
         final byte[] fixedMsg = new byte[1024];
 
         MessageStoreConfig config = new MessageStoreConfig();
-        config.setMultiCommitLogPathEnable(true);
-        config.setCommitLogStorePaths("target/unit_test_store/a/:target/unit_test_store/b/:target/unit_test_store/c/");
-        MappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
+        config.setStorePathCommitLog("target/unit_test_store/a/;target/unit_test_store/b/;target/unit_test_store/c/");
+        MultiPathMappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
+        List<String> commitLogStorePaths = StoreUtil.getCommitLogStorePaths(config.getStorePathCommitLog());
         for (int i = 0; i < 1024; i++) {
             MappedFile mappedFile = mappedFileQueue.getLastMappedFile(fixedMsg.length * i);
             assertThat(mappedFile).isNotNull();
             assertThat(mappedFile.appendMessage(fixedMsg)).isTrue();
-            int idx = i % config.getCommitLogStorePaths().size();
-            assertThat(mappedFile.getFileName().startsWith(config.getCommitLogStorePaths().get(idx))).isTrue();
+            int idx = i % commitLogStorePaths.size();
+            assertThat(mappedFile.getFileName().startsWith(commitLogStorePaths.get(idx))).isTrue();
         }
         mappedFileQueue.shutdown(1000);
         mappedFileQueue.destroy();
@@ -50,30 +50,30 @@ public class MultiPathMappedFileQueueTest {
             //create old mapped files
             final byte[] fixedMsg = new byte[1024];
             MessageStoreConfig config = new MessageStoreConfig();
-            config.setMultiCommitLogPathEnable(true);
-            config.setCommitLogStorePaths("target/unit_test_store/a/:target/unit_test_store/b/:target/unit_test_store/c/");
-            MappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
+            config.setStorePathCommitLog("target/unit_test_store/a/;target/unit_test_store/b/;target/unit_test_store/c/");
+            MultiPathMappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
+            List<String> commitLogStorePaths = StoreUtil.getCommitLogStorePaths(config.getStorePathCommitLog());
             for (int i = 0; i < 1024; i++) {
                 MappedFile mappedFile = mappedFileQueue.getLastMappedFile(fixedMsg.length * i);
                 assertThat(mappedFile).isNotNull();
                 assertThat(mappedFile.appendMessage(fixedMsg)).isTrue();
-                int idx = i % config.getCommitLogStorePaths().size();
-                assertThat(mappedFile.getFileName().startsWith(config.getCommitLogStorePaths().get(idx))).isTrue();
+                int idx = i % commitLogStorePaths.size();
+                assertThat(mappedFile.getFileName().startsWith(commitLogStorePaths.get(idx))).isTrue();
             }
             mappedFileQueue.shutdown(1000);
         }
 
         // test load and readonly
-        MessageStoreConfig config = new MessageStoreConfig();
-        config.setMultiCommitLogPathEnable(true);
-        config.setCommitLogStorePaths("target/unit_test_store/b/");
-        config.setReadOnlyCommitLogStorePaths("target/unit_test_store/a:target/unit_test_store/c");
-        MultiPathMappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
-
-        mappedFileQueue.load();
-
-        assertThat(mappedFileQueue.mappedFiles.size()).isEqualTo(1024);
-        mappedFileQueue.destroy();
+        {
+            MessageStoreConfig config = new MessageStoreConfig();
+            config.setStorePathCommitLog("target/unit_test_store/b/");
+            config.setReadOnlyCommitLogStorePaths("target/unit_test_store/a/;target/unit_test_store/c/");
+            MultiPathMappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
+            mappedFileQueue.load();
+            assertThat(mappedFileQueue.mappedFiles.size()).isEqualTo(1024);
+            mappedFileQueue.shutdown(1000);
+            mappedFileQueue.destroy();
+        }
 
     }
 
@@ -82,21 +82,16 @@ public class MultiPathMappedFileQueueTest {
         final byte[] fixedMsg = new byte[1024];
 
         MessageStoreConfig config = new MessageStoreConfig();
-        config.setMultiCommitLogPathEnable(true);
-        config.setCommitLogStorePaths("target/unit_test_store/a/:target/unit_test_store/b/:target/unit_test_store/c/");
-        MappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
-        for (int i = 0; i < 1024; i++) {
-            MappedFile mappedFile = mappedFileQueue.getLastMappedFile(fixedMsg.length * i);
-            assertThat(mappedFile).isNotNull();
-            assertThat(mappedFile.appendMessage(fixedMsg)).isTrue();
-            int idx = i % config.getCommitLogStorePaths().size();
-            assertThat(mappedFile.getFileName().startsWith(config.getCommitLogStorePaths().get(idx))).isTrue();
+        config.setStorePathCommitLog("target/unit_test_store/a/;target/unit_test_store/b/;target/unit_test_store/c/");
+        MultiPathMappedFileQueue mappedFileQueue = new MultiPathMappedFileQueue(config, 1024, null);
+        assertThat(mappedFileQueue.checkDiskSpaceAndReturnPaths().size()).isEqualTo(3);
 
-            if (i == 500) {
-                config.setCommitLogStorePaths("target/unit_test_store/a/:target/unit_test_store/b/");
-                assertThat(config.getCommitLogStorePaths().size()).isEqualTo(2);
-            }
-        }
+        config.setStorePathCommitLog("target/unit_test_store/a/;target/unit_test_store/b/");
+        assertThat(mappedFileQueue.checkDiskSpaceAndReturnPaths().size()).isEqualTo(2);
+
+        config.setReadOnlyCommitLogStorePaths("target/unit_test_store/b/");
+        assertThat(mappedFileQueue.checkDiskSpaceAndReturnPaths().size()).isEqualTo(1);
+
         mappedFileQueue.shutdown(1000);
         mappedFileQueue.destroy();
     }

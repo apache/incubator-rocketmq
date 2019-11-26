@@ -18,6 +18,9 @@ package org.apache.rocketmq.store;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.rocketmq.common.UtilAll;
 
 public class StoreUtil {
     public static final long TOTAL_PHYSICAL_MEMORY_SIZE = getTotalPhysicalMemorySize();
@@ -31,5 +34,21 @@ public class StoreUtil {
         }
 
         return physicalTotal;
+    }
+
+    public static List<String> getCommitLogStorePaths(String storePathCommitLog) {
+        List<String> storPaths = null;
+        if (!UtilAll.isBlank(storePathCommitLog)) {
+            storPaths = Arrays.asList(storePathCommitLog.trim().split(";"));
+        }
+        return storPaths;
+    }
+
+    public static List<String> getReadOnlyStorePaths(String readOnlyCommitLogStorePaths) {
+        List<String> storPaths = null;
+        if (!UtilAll.isBlank(readOnlyCommitLogStorePaths)) {
+            storPaths = Arrays.asList(readOnlyCommitLogStorePaths.trim().split(";"));
+        }
+        return storPaths;
     }
 }

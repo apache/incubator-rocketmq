@@ -16,8 +16,12 @@
  */
 package org.apache.rocketmq.store;
 
-
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.rocketmq.common.UtilAll;
+import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 
 import java.io.File;
@@ -26,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class MultiPathMappedFileQueue extends MappedFileQueue {
-
+    private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private final MessageStoreConfig config;
 
     public MultiPathMappedFileQueue(MessageStoreConfig messageStoreConfig, int mappedFileSize,
@@ -35,19 +39,20 @@ public class MultiPathMappedFileQueue extends MappedFileQueue {
         this.config = messageStoreConfig;
     }
 
-
     @Override
     public boolean load() {
         List<File> files = new ArrayList<>();
-        for (String path : config.getCommitLogStorePaths()) {
-            File dir = new File(path);
-            File[] ls = dir.listFiles();
-            if (ls != null) {
-                Collections.addAll(files, ls);
-            }
+        Set<String> loadPaths = new HashSet<>();
+        List<String> commitLogStorePaths = getCommitLogStorePaths();
+        if (commitLogStorePaths != null) {
+            loadPaths.addAll(commitLogStorePaths);
         }
-        if (config.getReadOnlyCommitLogStorePaths() != null) {
-            for (String path : config.getReadOnlyCommitLogStorePaths()) {
+        List<String> readOnlyStorePaths = getReadOnlyStorePaths();
+        if (readOnlyStorePaths != null) {
+            loadPaths.addAll(readOnlyStorePaths);
+        }
+        if (loadPaths.size() > 0) {
+            for (String path : loadPaths) {
                 File dir = new File(path);
                 File[] ls = dir.listFiles();
                 if (ls != null) {
@@ -55,19 +60,53 @@ public class MultiPathMappedFileQueue extends MappedFileQueue {
                 }
             }
         }
-
         return doLoad(files);
+    }
+
+    private List<String> getCommitLogStorePaths() {
+        return StoreUtil.getCommitLogStorePaths(config.getStorePathCommitLog());
+    }
+
+    private List<String> getReadOnlyStorePaths() {
+        return StoreUtil.getReadOnlyStorePaths(config.getReadOnlyCommitLogStorePaths());
     }
 
     @Override
     protected MappedFile tryCreateMappedFile(long createOffset) {
         long fileIdx = createOffset / this.mappedFileSize;
-        List<String> pathList = config.getCommitLogStorePaths();
+        List<String> pathList = checkDiskSpaceAndReturnPaths();
+        if (pathList.size() <= 0) {
+            return null;
+        }
         String nextFilePath = pathList.get((int) (fileIdx % pathList.size())) + File.separator
-                + UtilAll.offset2FileName(createOffset);
+            + UtilAll.offset2FileName(createOffset);
         String nextNextFilePath = pathList.get((int) ((fileIdx + 1) % pathList.size())) + File.separator
-                + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
+            + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
         return doCreateMappedFile(nextFilePath, nextNextFilePath);
+    }
+
+    public List<String> checkDiskSpaceAndReturnPaths() {
+        List<String> storePaths = new ArrayList<>();
+        List<String> checkPaths = getCommitLogStorePaths();
+        String readOnlyPathsStr = config.getReadOnlyCommitLogStorePaths();
+        if (checkPaths != null) {
+            for (String path : checkPaths) {
+                if (readOnlyPathsStr != null && readOnlyPathsStr.contains(path)) {
+                    continue;
+                }
+                try {
+                    File file = new File(path);
+                    MappedFile.ensureDirOK(file.getPath());
+                    if (file.exists() && file.getFreeSpace() > this.mappedFileSize) {
+                        storePaths.add(path);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to load the store path{} ex{}", path, e.getMessage());
+                }
+            }
+        }
+
+        return storePaths;
     }
 
     @Override
@@ -77,17 +116,19 @@ public class MultiPathMappedFileQueue extends MappedFileQueue {
         }
         this.mappedFiles.clear();
         this.flushedWhere = 0;
-
-        if (config.getCommitLogStorePaths() != null) {
-            for (String path : config.getCommitLogStorePaths()) {
+        List<String> commitLogStorePaths = getCommitLogStorePaths();
+        if (commitLogStorePaths != null) {
+            for (String path : commitLogStorePaths) {
                 File file = new File(path);
                 if (file.isDirectory()) {
                     file.delete();
                 }
             }
         }
-        if (config.getReadOnlyCommitLogStorePaths() != null) {
-            for (String path : config.getReadOnlyCommitLogStorePaths()) {
+
+        List<String> readOnlyCommitLogStorePaths = getReadOnlyStorePaths();
+        if (readOnlyCommitLogStorePaths != null) {
+            for (String path : readOnlyCommitLogStorePaths) {
                 File file = new File(path);
                 if (file.isDirectory()) {
                     file.delete();

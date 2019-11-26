@@ -99,7 +99,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
         final ConsumerSendMsgBackRequestHeader requestHeader =
-            (ConsumerSendMsgBackRequestHeader)request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
+            (ConsumerSendMsgBackRequestHeader) request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
 
         if (this.hasConsumeMessageHook() && !UtilAll.isBlank(requestHeader.getOriginMsgId())) {
 
@@ -249,8 +249,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     }
 
     private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
-                                      RemotingCommand request,
-                                      MessageExt msg, TopicConfig topicConfig) {
+        RemotingCommand request,
+        MessageExt msg, TopicConfig topicConfig) {
         String newTopic = requestHeader.getTopic();
         if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
             String groupName = newTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
@@ -366,9 +366,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     }
 
     private RemotingCommand handlePutMessageResult(PutMessageResult putMessageResult, RemotingCommand response,
-                                                   RemotingCommand request, MessageExt msg,
-                                                   SendMessageResponseHeader responseHeader, SendMessageContext sendMessageContext, ChannelHandlerContext ctx,
-                                                   int queueIdInt) {
+        RemotingCommand request, MessageExt msg,
+        SendMessageResponseHeader responseHeader, SendMessageContext sendMessageContext, ChannelHandlerContext ctx,
+        int queueIdInt) {
         if (putMessageResult == null) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("store putMessage return null");
@@ -448,7 +448,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
                 int commercialBaseCount = brokerController.getBrokerConfig().getCommercialBaseCount();
                 int wroteSize = putMessageResult.getAppendMessageResult().getWroteBytes();
-                int incValue = (int)Math.ceil(wroteSize / BrokerStatsManager.SIZE_PER_COUNT) * commercialBaseCount;
+                int incValue = (int) Math.ceil(wroteSize / BrokerStatsManager.SIZE_PER_COUNT) * commercialBaseCount;
 
                 sendMessageContext.setCommercialSendStats(BrokerStatsManager.StatsType.SEND_SUCCESS);
                 sendMessageContext.setCommercialSendTimes(incValue);
@@ -459,7 +459,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         } else {
             if (hasSendMessageHook()) {
                 int wroteSize = request.getBody().length;
-                int incValue = (int)Math.ceil(wroteSize / BrokerStatsManager.SIZE_PER_COUNT);
+                int incValue = (int) Math.ceil(wroteSize / BrokerStatsManager.SIZE_PER_COUNT);
 
                 sendMessageContext.setCommercialSendStats(BrokerStatsManager.StatsType.SEND_FAILURE);
                 sendMessageContext.setCommercialSendTimes(incValue);
@@ -561,15 +561,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
     private String diskUtil() {
         double physicRatio = -1;
-        if (this.brokerController.getMessageStoreConfig().isMultiCommitLogPathEnable()) {
-            for (String storePathPhysic : this.brokerController.getMessageStoreConfig().getCommitLogStorePaths()) {
-                physicRatio = Math.max(physicRatio, UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic));
-            }
-        } else {
-            String storePathPhysic = this.brokerController.getMessageStoreConfig().getStorePathCommitLog();
-            physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
-        }
-
+        String storePathPhysic = this.brokerController.getMessageStoreConfig().getStorePathCommitLog();
+        physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
         String storePathLogis =
             StorePathConfigHelper.getStorePathConsumeQueue(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
         double logisRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathLogis);

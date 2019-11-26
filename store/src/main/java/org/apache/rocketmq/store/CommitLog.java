@@ -64,14 +64,15 @@ public class CommitLog {
     private final PutMessageLock putMessageLock;
 
     public CommitLog(final DefaultMessageStore defaultMessageStore) {
-        if (defaultMessageStore.getMessageStoreConfig().isMultiCommitLogPathEnable()) {
+        List<String> commitLogPaths = StoreUtil.getCommitLogStorePaths(defaultMessageStore.getMessageStoreConfig().getStorePathCommitLog());
+        if (commitLogPaths != null && commitLogPaths.size() > 1) {
             this.mappedFileQueue = new MultiPathMappedFileQueue(defaultMessageStore.getMessageStoreConfig(),
                 defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog(),
                 defaultMessageStore.getAllocateMappedFileService());
         } else {
             this.mappedFileQueue = new MappedFileQueue(defaultMessageStore.getMessageStoreConfig().getStorePathCommitLog(),
-                    defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog(),
-                    defaultMessageStore.getAllocateMappedFileService());
+                defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog(),
+                defaultMessageStore.getAllocateMappedFileService());
         }
 
         this.defaultMessageStore = defaultMessageStore;

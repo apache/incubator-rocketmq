@@ -30,6 +30,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.OverlappingFileLockException;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.rocketmq.common.BrokerConfig;
 import org.apache.rocketmq.common.UtilAll;
@@ -285,7 +286,7 @@ public class DefaultMessageStoreTest {
     public void should_get_message_store_timestamp_successfully_when_incomming_by_topic_queueId_and_consumeQueueOffset() throws InterruptedException {
         final int totalCount = 10;
         int queueId = 0;
-        String topic = "FooBar";
+        String topic = "FooBar"+ UUID.randomUUID();
         AppendMessageResult[] appendMessageResults = putMessages(totalCount, topic, queueId, false);
         Thread.sleep(10);
 
@@ -308,7 +309,7 @@ public class DefaultMessageStoreTest {
     public void should_get_store_time_successfully_when_invoke_getStoreTime_if_everything_is_ok() throws InterruptedException {
         final int totalCount = 10;
         int queueId = 0;
-        String topic = "FooBar";
+        String topic = "FooBar"+ UUID.randomUUID();
         AppendMessageResult[] appendMessageResults = putMessages(totalCount, topic, queueId, false);
         Thread.sleep(10);
         ConsumeQueue consumeQueue = messageStore.getConsumeQueue(topic, queueId);

@@ -16,29 +16,22 @@
  */
 package org.apache.rocketmq.store.config;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.store.ConsumeQueue;
+
+import java.io.File;
 
 public class MessageStoreConfig {
     //The root directory in which the log data is kept
     @ImportantField
     private String storePathRootDir = System.getProperty("user.home") + File.separator + "store";
 
-    //The directory in which the commitlog is kept
+    //The directory in which the commitlog is kept,can configure multipath,separated by ":"
     @ImportantField
     private String storePathCommitLog = System.getProperty("user.home") + File.separator + "store"
         + File.separator + "commitlog";
 
-    private boolean multiCommitLogPathEnable = false;
-
-    private List<String> commitLogStorePaths = null;
-
-    private List<String> readOnlyCommitLogStorePaths = null;
+    private String readOnlyCommitLogStorePaths = null;
 
     // CommitLog file size,default is 1G
     private int mapedFileSizeCommitLog = 1024 * 1024 * 1024;
@@ -676,41 +669,11 @@ public class MessageStoreConfig {
         this.commitCommitLogThoroughInterval = commitCommitLogThoroughInterval;
     }
 
-    public boolean isMultiCommitLogPathEnable() {
-        return multiCommitLogPathEnable;
-    }
-
-    public void setMultiCommitLogPathEnable(boolean multiCommitLogPathEnable) {
-        this.multiCommitLogPathEnable = multiCommitLogPathEnable;
-    }
-
-    public List<String> getCommitLogStorePaths() {
-        return commitLogStorePaths;
-    }
-
-    public void setCommitLogStorePaths(String commitLogStorePaths) {
-        String[] tokens = commitLogStorePaths.trim().split(":");
-        List<String> pathList = Arrays.asList(tokens);
-        Collections.sort(pathList);
-        this.commitLogStorePaths = pathList;
-    }
-
-    public void setCommitLogStorePaths(List<String> commitLogStorePaths) {
-        this.commitLogStorePaths = commitLogStorePaths;
-    }
-
-    public List<String> getReadOnlyCommitLogStorePaths() {
+    public String getReadOnlyCommitLogStorePaths() {
         return readOnlyCommitLogStorePaths;
     }
 
-    public void setReadOnlyCommitLogStorePaths(List<String> readOnlyCommitLogStorePaths) {
-        this.readOnlyCommitLogStorePaths = readOnlyCommitLogStorePaths;
-    }
-
     public void setReadOnlyCommitLogStorePaths(String readOnlyCommitLogStorePaths) {
-        String[] tokens = readOnlyCommitLogStorePaths.trim().split(":");
-        List<String> pathList = Arrays.asList(tokens);
-        Collections.sort(pathList);
-        this.readOnlyCommitLogStorePaths = pathList;
+        this.readOnlyCommitLogStorePaths = readOnlyCommitLogStorePaths;
     }
 }
