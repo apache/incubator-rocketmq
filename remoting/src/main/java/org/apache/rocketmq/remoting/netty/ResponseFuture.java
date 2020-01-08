@@ -26,6 +26,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 public class ResponseFuture {
     private final int opaque;
+    private final RemotingCommand requestCommand;
     private final Channel processChannel;
     private final long timeoutMillis;
     private final InvokeCallback invokeCallback;
@@ -41,7 +42,13 @@ public class ResponseFuture {
 
     public ResponseFuture(Channel channel, int opaque, long timeoutMillis, InvokeCallback invokeCallback,
         SemaphoreReleaseOnlyOnce once) {
+        this(channel, opaque, null, timeoutMillis, invokeCallback, once);
+    }
+
+    public ResponseFuture(Channel channel, int opaque, RemotingCommand requestCommand, long timeoutMillis, InvokeCallback invokeCallback,
+                          SemaphoreReleaseOnlyOnce once) {
         this.opaque = opaque;
+        this.requestCommand = requestCommand;
         this.processChannel = channel;
         this.timeoutMillis = timeoutMillis;
         this.invokeCallback = invokeCallback;
@@ -115,6 +122,10 @@ public class ResponseFuture {
 
     public int getOpaque() {
         return opaque;
+    }
+
+    public RemotingCommand getRequestCommand() { 
+        return requestCommand; 
     }
 
     public Channel getProcessChannel() {
