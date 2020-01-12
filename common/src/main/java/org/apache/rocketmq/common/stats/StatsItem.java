@@ -152,31 +152,46 @@ public class StatsItem {
 
     public void samplingInSeconds() {
         synchronized (this.csListMinute) {
-            this.csListMinute.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
-                .get()));
-            if (this.csListMinute.size() > 7) {
-                this.csListMinute.removeFirst();
+            CallSnapshot cs;
+            if (this.csListMinute.size() > 6) {
+                cs = this.csListMinute.removeFirst();
+                cs.setTimes(this.times.get());
+                cs.setValue(this.value.get());
+                cs.setTimestamp(System.currentTimeMillis());
+            } else {
+                cs = new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value.get());
             }
+            this.csListMinute.add(cs);
         }
     }
 
     public void samplingInMinutes() {
         synchronized (this.csListHour) {
-            this.csListHour.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
-                .get()));
-            if (this.csListHour.size() > 7) {
-                this.csListHour.removeFirst();
+            CallSnapshot cs;
+            if (this.csListHour.size() > 6) {
+                cs = this.csListHour.removeFirst();
+                cs.setTimes(this.times.get());
+                cs.setValue(this.value.get());
+                cs.setTimestamp(System.currentTimeMillis());
+            } else {
+                cs = new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value.get());
             }
+            this.csListHour.add(cs);
         }
     }
 
     public void samplingInHour() {
         synchronized (this.csListDay) {
-            this.csListDay.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
-                .get()));
-            if (this.csListDay.size() > 25) {
-                this.csListDay.removeFirst();
+            CallSnapshot cs;
+            if (this.csListDay.size() > 24) {
+                cs = this.csListDay.removeFirst();
+                cs.setTimes(this.times.get());
+                cs.setValue(this.value.get());
+                cs.setTimestamp(System.currentTimeMillis());
+            } else {
+                cs = new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value.get());
             }
+            this.csListDay.add(cs);
         }
     }
 
@@ -228,10 +243,9 @@ public class StatsItem {
 }
 
 class CallSnapshot {
-    private final long timestamp;
-    private final long times;
-
-    private final long value;
+    private long timestamp;
+    private long times;
+    private long value;
 
     public CallSnapshot(long timestamp, long times, long value) {
         super();
@@ -250,5 +264,17 @@ class CallSnapshot {
 
     public long getValue() {
         return value;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public void setTimes(long times) {
+        this.times = times;
+    }
+
+    public void setValue(long value) {
+        this.value = value;
     }
 }
