@@ -65,4 +65,11 @@ public class MessageTest {
         m.putUserProperty("prop1", "val1");
         Assert.assertEquals("val1", m.getUserProperty("prop1"));
     }
+
+    @Test
+    public void putMaxReConsumeTimes(){
+        Message message = new Message();
+        message.setMaxReConsumerTimes(12);
+        Assert.assertEquals(12 , message.getMaxReConsumerTimes());
+    }
 }

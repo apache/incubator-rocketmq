@@ -16,6 +16,8 @@
  */
 package org.apache.rocketmq.common.message;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -203,6 +205,19 @@ public class Message implements Serializable {
 
     public void setTransactionId(String transactionId) {
         this.transactionId = transactionId;
+    }
+
+    public void setMaxReConsumerTimes(int times) {
+        this.putProperty(MessageConst.PROPERTY_MAX_RECONSUME_TIMES,Integer.toString(times));
+    }
+
+    public int getMaxReConsumerTimes() {
+        String content = getProperty(MessageConst.PROPERTY_MAX_RECONSUME_TIMES);
+        if (StringUtils.isEmpty(content)) {
+            return -1;
+        } else {
+            return Integer.parseInt(content);
+        }
     }
 
     @Override

@@ -25,9 +25,14 @@ import org.apache.rocketmq.client.impl.CommunicationMode;
 import org.apache.rocketmq.client.impl.FindBrokerResult;
 import org.apache.rocketmq.client.impl.MQClientAPIImpl;
 import org.apache.rocketmq.client.impl.MQClientManager;
+import org.apache.rocketmq.client.impl.consumer.DefaultMQPullConsumerImpl;
 import org.apache.rocketmq.client.impl.consumer.PullAPIWrapper;
 import org.apache.rocketmq.client.impl.consumer.PullResultExt;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.common.MixAll;
+import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.header.PullMessageRequestHeader;
@@ -37,24 +42,25 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DefaultMQPullConsumerTest {
+    private ClientConfig clientConfig = new ClientConfig();
+    {
+        // change to pid , because we need share mQClientFactory
+        clientConfig.changeInstanceNameToPID();
+    }
     @Spy
-    private MQClientInstance mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(new ClientConfig());
+    private MQClientInstance mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(clientConfig);
     @Mock
     private MQClientAPIImpl mQClientAPIImpl;
     private DefaultMQPullConsumer pullConsumer;
@@ -75,6 +81,14 @@ public class DefaultMQPullConsumerTest {
         field = MQClientInstance.class.getDeclaredField("mQClientAPIImpl");
         field.setAccessible(true);
         field.set(mQClientFactory, mQClientAPIImpl);
+
+        Field implField = DefaultMQPullConsumer.class.getDeclaredField("defaultMQPullConsumerImpl");
+        implField.setAccessible(true);
+        Object implObj = implField.get(pullConsumer);
+
+        Field mQClientFactoryFiled = DefaultMQPullConsumerImpl.class.getDeclaredField("mQClientFactory");
+        mQClientFactoryFiled.setAccessible(true);
+        mQClientFactoryFiled.set(implObj,mQClientFactory);
 
         when(mQClientFactory.findBrokerAddressInSubscribe(anyString(), anyLong(), anyBoolean())).thenReturn(new FindBrokerResult("127.0.0.1:10911", false));
     }
@@ -108,6 +122,74 @@ public class DefaultMQPullConsumerTest {
         assertThat(pullResult.getMaxOffset()).isEqualTo(2048);
         assertThat(pullResult.getMsgFoundList()).isEqualTo(new ArrayList<Object>());
     }
+
+    @Test
+    public void testSendMessageBack_sendFail() throws Exception {
+
+        final String topic = "test_topic";
+        final long offset = 123456L;
+        final String msgId = "id_89757";
+        final int maxReconsumeTimes = 12 ;
+
+        MQClientAPIImpl mockMQClientAPIImpl = Mockito.mock(MQClientAPIImpl.class);
+        DefaultMQProducer mockDefaultMQProducer = Mockito.mock(DefaultMQProducer.class);
+        when(mQClientFactory.getMQClientAPIImpl()).thenReturn(mockMQClientAPIImpl);
+        when(mQClientFactory.getDefaultMQProducer()).thenReturn(mockDefaultMQProducer);
+        Mockito.doThrow(new RuntimeException("send error")).when(mockMQClientAPIImpl).consumerSendMessageBack((String) any(),any(MessageExt.class), (String) any(),anyInt(),anyLong(),anyInt());
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Message message = (Message) invocationOnMock.getArguments()[0];
+                Assert.assertEquals(MixAll.getRetryTopic(pullConsumer.getConsumerGroup()),message.getTopic());
+                Assert.assertEquals(maxReconsumeTimes,message.getMaxReConsumerTimes());
+                Assert.assertEquals(topic,message.getProperty(MessageConst.PROPERTY_RETRY_TOPIC));
+                return null;
+            }
+        }).when(mockDefaultMQProducer).send((Message)any());
+
+        MessageExt messageExt = new MessageExt();
+        messageExt.setTopic(topic);
+        messageExt.setCommitLogOffset(offset);
+        messageExt.setMsgId(msgId);
+        messageExt.setBody("hello".getBytes());
+        messageExt.setMaxReConsumerTimes(maxReconsumeTimes);
+
+        pullConsumer.sendMessageBack(messageExt,0,brokerName,"DEFAULT");
+
+    }
+
+    @Test
+    public void testSendMessageBack_sendOk() throws Exception {
+
+        final String topic = "test_topic";
+        final long offset = 123456L;
+        final String msgId = "id_89757";
+        final int maxReconsumeTimes = 12 ;
+
+        MQClientAPIImpl mockMQClientAPIImpl = Mockito.mock(MQClientAPIImpl.class);
+        when(mQClientFactory.getMQClientAPIImpl()).thenReturn(mockMQClientAPIImpl);
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                MessageExt msg = (MessageExt) invocationOnMock.getArguments()[1];
+                Assert.assertEquals(topic,msg.getTopic());
+                Assert.assertEquals(offset,msg.getCommitLogOffset());
+                Assert.assertEquals(msgId,msg.getMsgId());
+                Assert.assertEquals(maxReconsumeTimes,msg.getMaxReConsumerTimes());
+                return null;
+            }
+        }).when(mockMQClientAPIImpl).consumerSendMessageBack((String) any(),any(MessageExt.class), (String) any(),anyInt(),anyLong(),anyInt());
+
+        MessageExt messageExt = new MessageExt();
+        messageExt.setTopic(topic);
+        messageExt.setCommitLogOffset(offset);
+        messageExt.setMsgId(msgId);
+        messageExt.setBody("hello".getBytes());
+        messageExt.setMaxReConsumerTimes(maxReconsumeTimes);
+
+        pullConsumer.sendMessageBack(messageExt,0,brokerName,"DEFAULT");
+    }
+
 
     @Test
     public void testPullMessage_NotFound() throws Exception {

@@ -514,7 +514,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             String brokerAddr = (null != brokerName) ? this.mQClientFactory.findBrokerAddressInPublish(brokerName)
                 : RemotingHelper.parseSocketAddressAddr(msg.getStoreHost());
             this.mQClientFactory.getMQClientAPIImpl().consumerSendMessageBack(brokerAddr, msg,
-                this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, getMaxReconsumeTimes());
+                this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, getMaxReconsumeTimes(msg));
         } catch (Exception e) {
             log.error("sendMessageBack Exception, " + this.defaultMQPushConsumer.getConsumerGroup(), e);
 
@@ -527,7 +527,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             MessageAccessor.setProperties(newMsg, msg.getProperties());
             MessageAccessor.putProperty(newMsg, MessageConst.PROPERTY_RETRY_TOPIC, msg.getTopic());
             MessageAccessor.setReconsumeTime(newMsg, String.valueOf(msg.getReconsumeTimes() + 1));
-            MessageAccessor.setMaxReconsumeTimes(newMsg, String.valueOf(getMaxReconsumeTimes()));
+            MessageAccessor.setMaxReconsumeTimes(newMsg, String.valueOf(getMaxReconsumeTimes(msg)));
             newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes());
 
             this.mQClientFactory.getDefaultMQProducer().send(newMsg);
@@ -536,13 +536,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
-    private int getMaxReconsumeTimes() {
-        // default reconsume times: 16
-        if (this.defaultMQPushConsumer.getMaxReconsumeTimes() == -1) {
-            return 16;
-        } else {
-            return this.defaultMQPushConsumer.getMaxReconsumeTimes();
+    private int getMaxReconsumeTimes(MessageExt messageExt) {
+        if (messageExt.getMaxReConsumerTimes() >= 0) {
+            return messageExt.getMaxReConsumerTimes();
         }
+        return this.defaultMQPushConsumer.getMaxReconsumeTimes();
     }
 
     public synchronized void shutdown() {
