@@ -494,63 +494,53 @@ public class MQClientAPIImpl {
         final Message msg,
         final RemotingCommand response
     ) throws MQBrokerException, RemotingCommandException {
+        SendStatus sendStatus = null;
         switch (response.getCode()) {
             case ResponseCode.FLUSH_DISK_TIMEOUT:
+                sendStatus = SendStatus.FLUSH_DISK_TIMEOUT;
+                break;
             case ResponseCode.FLUSH_SLAVE_TIMEOUT:
-            case ResponseCode.SLAVE_NOT_AVAILABLE: {
-            }
-            case ResponseCode.SUCCESS: {
-                SendStatus sendStatus = SendStatus.SEND_OK;
-                switch (response.getCode()) {
-                    case ResponseCode.FLUSH_DISK_TIMEOUT:
-                        sendStatus = SendStatus.FLUSH_DISK_TIMEOUT;
-                        break;
-                    case ResponseCode.FLUSH_SLAVE_TIMEOUT:
-                        sendStatus = SendStatus.FLUSH_SLAVE_TIMEOUT;
-                        break;
-                    case ResponseCode.SLAVE_NOT_AVAILABLE:
-                        sendStatus = SendStatus.SLAVE_NOT_AVAILABLE;
-                        break;
-                    case ResponseCode.SUCCESS:
-                        sendStatus = SendStatus.SEND_OK;
-                        break;
-                    default:
-                        assert false;
-                        break;
-                }
-
-                SendMessageResponseHeader responseHeader =
-                    (SendMessageResponseHeader) response.decodeCommandCustomHeader(SendMessageResponseHeader.class);
-
-                MessageQueue messageQueue = new MessageQueue(msg.getTopic(), brokerName, responseHeader.getQueueId());
-
-                String uniqMsgId = MessageClientIDSetter.getUniqID(msg);
-                if (msg instanceof MessageBatch) {
-                    StringBuilder sb = new StringBuilder();
-                    for (Message message : (MessageBatch) msg) {
-                        sb.append(sb.length() == 0 ? "" : ",").append(MessageClientIDSetter.getUniqID(message));
-                    }
-                    uniqMsgId = sb.toString();
-                }
-                SendResult sendResult = new SendResult(sendStatus,
-                    uniqMsgId,
-                    responseHeader.getMsgId(), messageQueue, responseHeader.getQueueOffset());
-                sendResult.setTransactionId(responseHeader.getTransactionId());
-                String regionId = response.getExtFields().get(MessageConst.PROPERTY_MSG_REGION);
-                String traceOn = response.getExtFields().get(MessageConst.PROPERTY_TRACE_SWITCH);
-                if (regionId == null || regionId.isEmpty()) {
-                    regionId = MixAll.DEFAULT_TRACE_REGION_ID;
-                }
-                if (traceOn != null && traceOn.equals("false")) {
-                    sendResult.setTraceOn(false);
-                } else {
-                    sendResult.setTraceOn(true);
-                }
-                sendResult.setRegionId(regionId);
-                return sendResult;
-            }
+                sendStatus = SendStatus.FLUSH_SLAVE_TIMEOUT;
+                break;
+            case ResponseCode.SLAVE_NOT_AVAILABLE:
+                sendStatus = SendStatus.SLAVE_NOT_AVAILABLE;
+                break;
+            case ResponseCode.SUCCESS:
+                sendStatus = SendStatus.SEND_OK;
+                break;
             default:
                 break;
+        }
+        if (sendStatus != null) {
+            SendMessageResponseHeader responseHeader =
+                (SendMessageResponseHeader) response.decodeCommandCustomHeader(SendMessageResponseHeader.class);
+
+            MessageQueue messageQueue = new MessageQueue(msg.getTopic(), brokerName, responseHeader.getQueueId());
+
+            String uniqMsgId = MessageClientIDSetter.getUniqID(msg);
+            if (msg instanceof MessageBatch) {
+                StringBuilder sb = new StringBuilder();
+                for (Message message : (MessageBatch) msg) {
+                    sb.append(sb.length() == 0 ? "" : ",").append(MessageClientIDSetter.getUniqID(message));
+                }
+                uniqMsgId = sb.toString();
+            }
+            SendResult sendResult = new SendResult(sendStatus,
+                uniqMsgId,
+                responseHeader.getMsgId(), messageQueue, responseHeader.getQueueOffset());
+            sendResult.setTransactionId(responseHeader.getTransactionId());
+            String regionId = response.getExtFields().get(MessageConst.PROPERTY_MSG_REGION);
+            String traceOn = response.getExtFields().get(MessageConst.PROPERTY_TRACE_SWITCH);
+            if (regionId == null || regionId.isEmpty()) {
+                regionId = MixAll.DEFAULT_TRACE_REGION_ID;
+            }
+            if (traceOn != null && traceOn.equals("false")) {
+                sendResult.setTraceOn(false);
+            } else {
+                sendResult.setTraceOn(true);
+            }
+            sendResult.setRegionId(regionId);
+            return sendResult;
         }
 
         throw new MQBrokerException(response.getCode(), response.getRemark());

@@ -126,6 +126,30 @@ public class MQClientAPIImplTest {
     }
 
     @Test
+    public void testSendMessageSync_WithDiffRespCodeException() throws InterruptedException, RemotingException, MQBrokerException {
+        int[] responseCodes = {ResponseCode.FLUSH_DISK_TIMEOUT, ResponseCode.FLUSH_SLAVE_TIMEOUT,
+            ResponseCode.SLAVE_NOT_AVAILABLE};
+        SendStatus[] sendStatuses = {SendStatus.FLUSH_DISK_TIMEOUT, SendStatus.FLUSH_SLAVE_TIMEOUT, SendStatus.SLAVE_NOT_AVAILABLE};
+        for (int i = 0; i < responseCodes.length; i++) {
+            final int responseCode = responseCodes[i];
+            doAnswer(new Answer() {
+                @Override
+                public Object answer(InvocationOnMock mock) throws Throwable {
+                    RemotingCommand request = mock.getArgument(1);
+                    RemotingCommand response = createSuccessResponse(request);
+                    response.setCode(responseCode);
+                    return response;
+                }
+            }).when(remotingClient).invokeSync(anyString(), any(RemotingCommand.class), anyLong());
+
+            SendMessageRequestHeader requestHeader = createSendMessageRequestHeader();
+            SendResult sendResult = mqClientAPI.sendMessage(brokerAddr, brokerName, msg, requestHeader,
+                3 * 1000, CommunicationMode.SYNC, new SendMessageContext(), defaultMQProducerImpl);
+            assertThat(sendResult.getSendStatus()).isEqualTo(sendStatuses[i]);
+        }
+    }
+
+    @Test
     public void testSendMessageSync_WithException() throws InterruptedException, RemotingException, MQBrokerException {
         doAnswer(new Answer() {
             @Override
