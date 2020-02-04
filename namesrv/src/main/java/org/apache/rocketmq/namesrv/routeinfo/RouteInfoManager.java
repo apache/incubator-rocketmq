@@ -128,6 +128,17 @@ public class RouteInfoManager {
                     brokerData = new BrokerData(clusterName, brokerName, new HashMap<Long, String>());
                     this.brokerAddrTable.put(brokerName, brokerData);
                 }
+                Map<Long, String> brokerAddrsMap = brokerData.getBrokerAddrs();
+                //Switch slave to master: first remove <1, IP:PORT> in namesrv, then add <0, IP:PORT>
+                //The same IP:PORT must only have one record in brokerAddrTable
+                Iterator<Entry<Long, String>> it = brokerAddrsMap.entrySet().iterator();
+                while (it.hasNext()) {
+                    Entry<Long, String> item = it.next();
+                    if (null != brokerAddr && brokerAddr.equals(item.getValue()) && brokerId != item.getKey()) {
+                        it.remove();
+                    }
+                }
+
                 String oldAddr = brokerData.getBrokerAddrs().put(brokerId, brokerAddr);
                 registerFirst = registerFirst || (null == oldAddr);
 

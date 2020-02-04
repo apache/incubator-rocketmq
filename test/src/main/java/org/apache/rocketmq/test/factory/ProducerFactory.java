@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.test.factory;
 
+import java.util.UUID;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.test.util.RandomUtil;
@@ -25,6 +26,7 @@ public class ProducerFactory {
 
     public static DefaultMQProducer getRMQProducer(String ns) {
         DefaultMQProducer producer = new DefaultMQProducer(RandomUtil.getStringByUUID());
+        producer.setInstanceName(UUID.randomUUID().toString());
         producer.setNamesrvAddr(ns);
         try {
             producer.start();

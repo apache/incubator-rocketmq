@@ -39,7 +39,6 @@ import org.apache.rocketmq.tools.admin.DefaultMQAdminExtImpl;
 import org.apache.rocketmq.tools.command.SubCommandException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -49,9 +48,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class BrokerConsumeStatsSubCommadTest {
+
+    private static BrokerConsumeStatsSubCommad cmd = new BrokerConsumeStatsSubCommad();
+
     private static DefaultMQAdminExt defaultMQAdminExt;
     private static DefaultMQAdminExtImpl defaultMQAdminExtImpl;
-    private static MQClientInstance mqClientInstance = MQClientManager.getInstance().getAndCreateMQClientInstance(new ClientConfig());
+    private static MQClientInstance mqClientInstance = MQClientManager.getInstance().getOrCreateMQClientInstance(new ClientConfig());
     private static MQClientAPIImpl mQClientAPIImpl;
 
     @BeforeClass
@@ -81,10 +83,13 @@ public class BrokerConsumeStatsSubCommadTest {
     public static void terminate() {
     }
 
-    @Ignore
     @Test
-    public void testExecute() throws SubCommandException {
-        BrokerConsumeStatsSubCommad cmd = new BrokerConsumeStatsSubCommad();
+    public void testExecute() throws SubCommandException, IllegalAccessException, NoSuchFieldException {
+
+        Field field = BrokerConsumeStatsSubCommad.class.getDeclaredField("defaultMQAdminExt");
+        field.setAccessible(true);
+        field.set(cmd, defaultMQAdminExt);
+
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         String[] subargs = new String[] {"-b 127.0.0.1:10911", "-t 3000", "-l 5", "-o true"};
         final CommandLine commandLine =

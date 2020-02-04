@@ -48,6 +48,8 @@ public class TransactionListenerImpl implements TransactionListener {
                     return LocalTransactionState.COMMIT_MESSAGE;
                 case 2:
                     return LocalTransactionState.ROLLBACK_MESSAGE;
+                default:
+                    return LocalTransactionState.COMMIT_MESSAGE;
             }
         }
         return LocalTransactionState.COMMIT_MESSAGE;

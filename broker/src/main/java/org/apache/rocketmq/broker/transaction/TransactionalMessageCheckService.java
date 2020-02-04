@@ -22,34 +22,13 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class TransactionalMessageCheckService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
     private BrokerController brokerController;
 
-    private final AtomicBoolean started = new AtomicBoolean(false);
-
     public TransactionalMessageCheckService(BrokerController brokerController) {
         this.brokerController = brokerController;
-    }
-
-    @Override
-    public void start() {
-        if (started.compareAndSet(false, true)) {
-            super.start();
-            this.brokerController.getTransactionalMessageService().open();
-        }
-    }
-
-    @Override
-    public void shutdown(boolean interrupt) {
-        if (started.compareAndSet(true, false)) {
-            super.shutdown(interrupt);
-            this.brokerController.getTransactionalMessageService().close();
-            this.brokerController.getTransactionalMessageCheckListener().shutDown();
-        }
     }
 
     @Override

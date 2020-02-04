@@ -152,7 +152,7 @@ public class BrokerOuterAPI {
                                 registerBrokerResultList.add(result);
                             }
 
-                            log.info("register broker to name server {} OK", namesrvAddr);
+                            log.info("register broker[{}]to name server {} OK", brokerId, namesrvAddr);
                         } catch (Exception e) {
                             log.warn("registerBroker Exception, {}", namesrvAddr, e);
                         } finally {

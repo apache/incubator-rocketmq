@@ -22,7 +22,7 @@ public class DispatchRequest {
     private final String topic;
     private final int queueId;
     private final long commitLogOffset;
-    private final int msgSize;
+    private int msgSize;
     private final long tagsCode;
     private final long storeTimestamp;
     private final long consumeQueueOffset;
@@ -34,6 +34,8 @@ public class DispatchRequest {
     private final long preparedTransactionOffset;
     private final Map<String, String> propertiesMap;
     private byte[] bitMap;
+
+    private int bufferSize = -1;//the buffer size maybe larger than the msg size if the message is wrapped by something
 
     public DispatchRequest(
         final String topic,
@@ -155,5 +157,17 @@ public class DispatchRequest {
 
     public void setBitMap(byte[] bitMap) {
         this.bitMap = bitMap;
+    }
+
+    public void setMsgSize(int msgSize) {
+        this.msgSize = msgSize;
+    }
+
+    public int getBufferSize() {
+        return bufferSize;
+    }
+
+    public void setBufferSize(int bufferSize) {
+        this.bufferSize = bufferSize;
     }
 }

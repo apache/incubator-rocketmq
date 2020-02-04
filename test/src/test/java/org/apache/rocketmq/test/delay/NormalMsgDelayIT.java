@@ -51,7 +51,8 @@ public class NormalMsgDelayIT extends DelayConf {
     }
 
     @Test
-    public void testDelayLevell() {
+    public void testDelayLevel1() throws Exception {
+        Thread.sleep(3000);
         int delayLevel = 1;
         List<Object> delayMsgs = MQMessageFactory.getDelayMsg(topic, delayLevel, msgSize);
         producer.send(delayMsgs);

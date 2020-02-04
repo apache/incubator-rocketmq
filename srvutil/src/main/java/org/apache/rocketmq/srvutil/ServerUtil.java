@@ -49,10 +49,11 @@ public class ServerUtil {
             commandLine = parser.parse(options, args);
             if (commandLine.hasOption('h')) {
                 hf.printHelp(appName, options, true);
-                return null;
+                System.exit(0);
             }
         } catch (ParseException e) {
             hf.printHelp(appName, options, true);
+            System.exit(1);
         }
 
         return commandLine;

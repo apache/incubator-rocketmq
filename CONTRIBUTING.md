@@ -10,7 +10,7 @@ Nor is code the only way to contribute to the project. We strongly value documen
 To submit a change for inclusion, please do the following:
 
 #### If the change is non-trivial please include some unit tests that cover the new functionality.
-#### If you are introducing a completely new feature or API it is a good idea to start a wiki and get consensus on the basic design first.
+#### If you are introducing a completely new feature or API it is a good idea to start a [RIP](https://github.com/apache/rocketmq/wiki/RocketMQ-Improvement-Proposal) and get consensus on the basic design first.
 #### It is our job to follow up on patches in a timely fashion. Nag us if we aren't doing our job (sometimes we drop things).
 
 ## Becoming a Committer
@@ -19,9 +19,8 @@ We are always interested in adding new contributors. What we look for are series
 
 Nowadays,we have several important contribution points:
 #### Wiki & JavaDoc
-#### RocketMQ Console
 #### RocketMQ SDK(C++\.Net\Php\Python\Go\Node.js)
-#### RocketMQ MySQL(Oracle\PostgreSQL\Redis\MongoDB\HBase\MSSQL) Replicator
+#### RocketMQ Connectors
 
 ##### Prerequisite
 If you want to contribute the above listing points, you must abide our some prerequisites:

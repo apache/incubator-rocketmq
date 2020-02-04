@@ -47,9 +47,14 @@ public class IntegrationTestBase {
     protected static final List<BrokerController> BROKER_CONTROLLERS = new ArrayList<>();
     protected static final List<NamesrvController> NAMESRV_CONTROLLERS = new ArrayList<>();
     protected static int topicCreateTime = 30 * 1000;
-    protected static final int COMMIT_LOG_SIZE = 1024 * 1024 * 256;
+    protected static final int COMMIT_LOG_SIZE = 1024 * 1024 * 100;
     protected static final int INDEX_NUM = 1000;
 
+    private static final AtomicInteger port = new AtomicInteger(40000);
+
+    public static synchronized int nextPort() {
+        return port.addAndGet(random.nextInt(10) + 10);
+    }
     protected static Random random = new Random();
 
     static {
@@ -87,7 +92,7 @@ public class IntegrationTestBase {
 
     }
 
-    private static String createBaseDir() {
+    public static String createBaseDir() {
         String baseDir = System.getProperty("user.home") + SEP + "unitteststore-" + UUID.randomUUID();
         final File file = new File(baseDir);
         if (file.exists()) {
@@ -105,14 +110,14 @@ public class IntegrationTestBase {
         namesrvConfig.setKvConfigPath(baseDir + SEP + "namesrv" + SEP + "kvConfig.json");
         namesrvConfig.setConfigStorePath(baseDir + SEP + "namesrv" + SEP + "namesrv.properties");
 
-        nameServerNettyServerConfig.setListenPort(9000 + random.nextInt(1000));
+        nameServerNettyServerConfig.setListenPort(nextPort());
         NamesrvController namesrvController = new NamesrvController(namesrvConfig, nameServerNettyServerConfig);
         try {
             Assert.assertTrue(namesrvController.initialize());
             logger.info("Name Server Start:{}", nameServerNettyServerConfig.getListenPort());
             namesrvController.start();
         } catch (Exception e) {
-            logger.info("Name Server start failed");
+            logger.info("Name Server start failed", e);
             System.exit(1);
         }
         NAMESRV_CONTROLLERS.add(namesrvController);
@@ -123,8 +128,6 @@ public class IntegrationTestBase {
     public static BrokerController createAndStartBroker(String nsAddr) {
         String baseDir = createBaseDir();
         BrokerConfig brokerConfig = new BrokerConfig();
-        NettyServerConfig nettyServerConfig = new NettyServerConfig();
-        NettyClientConfig nettyClientConfig = new NettyClientConfig();
         MessageStoreConfig storeConfig = new MessageStoreConfig();
         brokerConfig.setBrokerName(BROKER_NAME_PREFIX + BROKER_INDEX.getAndIncrement());
         brokerConfig.setBrokerIP1("127.0.0.1");
@@ -132,18 +135,25 @@ public class IntegrationTestBase {
         brokerConfig.setEnablePropertyFilter(true);
         storeConfig.setStorePathRootDir(baseDir);
         storeConfig.setStorePathCommitLog(baseDir + SEP + "commitlog");
-        storeConfig.setHaListenPort(8000 + random.nextInt(1000));
-        storeConfig.setMapedFileSizeCommitLog(COMMIT_LOG_SIZE);
+        storeConfig.setMappedFileSizeCommitLog(COMMIT_LOG_SIZE);
         storeConfig.setMaxIndexNum(INDEX_NUM);
         storeConfig.setMaxHashSlotNum(INDEX_NUM * 4);
-        nettyServerConfig.setListenPort(10000 + random.nextInt(1000));
+        return createAndStartBroker(storeConfig, brokerConfig);
+
+    }
+
+    public static BrokerController createAndStartBroker(MessageStoreConfig storeConfig, BrokerConfig brokerConfig) {
+        NettyServerConfig nettyServerConfig = new NettyServerConfig();
+        NettyClientConfig nettyClientConfig = new NettyClientConfig();
+        nettyServerConfig.setListenPort(nextPort());
+        storeConfig.setHaListenPort(nextPort());
         BrokerController brokerController = new BrokerController(brokerConfig, nettyServerConfig, nettyClientConfig, storeConfig);
         try {
             Assert.assertTrue(brokerController.initialize());
             logger.info("Broker Start name:{} addr:{}", brokerConfig.getBrokerName(), brokerController.getBrokerAddr());
             brokerController.start();
-        } catch (Exception e) {
-            logger.info("Broker start failed");
+        } catch (Throwable t) {
+            logger.error("Broker start failed, will exit", t);
             System.exit(1);
         }
         BROKER_CONTROLLERS.add(brokerController);
@@ -179,15 +189,7 @@ public class IntegrationTestBase {
         if (!file.exists()) {
             return;
         }
-        if (file.isFile()) {
-            file.delete();
-        } else if (file.isDirectory()) {
-            File[] files = file.listFiles();
-            for (File file1 : files) {
-                deleteFile(file1);
-            }
-            file.delete();
-        }
+        UtilAll.deleteFile(file);
     }
 
 }

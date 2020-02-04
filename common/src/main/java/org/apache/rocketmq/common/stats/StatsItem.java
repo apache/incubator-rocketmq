@@ -127,7 +127,7 @@ public class StatsItem {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computNextMinutesTimeMillis() - System.currentTimeMillis()), 1000 * 60, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computeNextMinutesTimeMillis() - System.currentTimeMillis()), 1000 * 60, TimeUnit.MILLISECONDS);
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -137,7 +137,7 @@ public class StatsItem {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computNextHourTimeMillis() - System.currentTimeMillis()), 1000 * 60 * 60, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computeNextHourTimeMillis() - System.currentTimeMillis()), 1000 * 60 * 60, TimeUnit.MILLISECONDS);
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -147,11 +147,14 @@ public class StatsItem {
                 } catch (Throwable ignored) {
                 }
             }
-        }, Math.abs(UtilAll.computNextMorningTimeMillis() - System.currentTimeMillis()) - 2000, 1000 * 60 * 60 * 24, TimeUnit.MILLISECONDS);
+        }, Math.abs(UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis()) - 2000, 1000 * 60 * 60 * 24, TimeUnit.MILLISECONDS);
     }
 
     public void samplingInSeconds() {
         synchronized (this.csListMinute) {
+            if (this.csListMinute.size() == 0) {
+                this.csListMinute.add(new CallSnapshot(System.currentTimeMillis() - 10 * 1000, 0, 0));
+            }
             this.csListMinute.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
                 .get()));
             if (this.csListMinute.size() > 7) {
@@ -162,6 +165,9 @@ public class StatsItem {
 
     public void samplingInMinutes() {
         synchronized (this.csListHour) {
+            if (this.csListHour.size() == 0) {
+                this.csListHour.add(new CallSnapshot(System.currentTimeMillis() - 10 * 60 * 1000, 0, 0));
+            }
             this.csListHour.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
                 .get()));
             if (this.csListHour.size() > 7) {
@@ -172,6 +178,9 @@ public class StatsItem {
 
     public void samplingInHour() {
         synchronized (this.csListDay) {
+            if (this.csListDay.size() == 0) {
+                this.csListDay.add(new CallSnapshot(System.currentTimeMillis() - 1 * 60 * 60 * 1000, 0, 0));
+            }
             this.csListDay.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
                 .get()));
             if (this.csListDay.size() > 25) {

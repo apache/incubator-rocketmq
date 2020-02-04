@@ -37,6 +37,7 @@ public class SendMessageContext {
     private Map<String, String> props;
     private DefaultMQProducerImpl producer;
     private MessageType msgType = MessageType.Normal_Msg;
+    private String namespace;
 
     public MessageType getMsgType() {
         return msgType;
@@ -132,5 +133,13 @@ public class SendMessageContext {
 
     public void setBornHost(String bornHost) {
         this.bornHost = bornHost;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 }

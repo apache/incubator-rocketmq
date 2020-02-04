@@ -30,8 +30,9 @@ import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
-import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ConsumeQueueTest {
 
@@ -82,11 +83,34 @@ public class ConsumeQueueTest {
         return msg;
     }
 
+    public MessageExtBrokerInner buildIPv6HostMessage() {
+        MessageExtBrokerInner msg = new MessageExtBrokerInner();
+        msg.setTopic(topic);
+        msg.setTags("TAG1");
+        msg.setKeys("Hello");
+        msg.setBody(msgBody);
+        msg.setMsgId("24084004018081003FAA1DDE2B3F898A00002A9F0000000000000CA0");
+        msg.setKeys(String.valueOf(System.currentTimeMillis()));
+        msg.setQueueId(queueId);
+        msg.setSysFlag(0);
+        msg.setBornHostV6Flag();
+        msg.setStoreHostAddressV6Flag();
+        msg.setBornTimestamp(System.currentTimeMillis());
+        msg.setBornHost(new InetSocketAddress("1050:0000:0000:0000:0005:0600:300c:326b", 123));
+        msg.setStoreHost(new InetSocketAddress("::1", 124));
+        for (int i = 0; i < 1; i++) {
+            msg.putUserProperty(String.valueOf(i), "imagoodperson" + i);
+        }
+        msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
+
+        return msg;
+    }
+
     public MessageStoreConfig buildStoreConfig(int commitLogFileSize, int cqFileSize,
         boolean enableCqExt, int cqExtFileSize) {
         MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
-        messageStoreConfig.setMapedFileSizeCommitLog(commitLogFileSize);
-        messageStoreConfig.setMapedFileSizeConsumeQueue(cqFileSize);
+        messageStoreConfig.setMappedFileSizeCommitLog(commitLogFileSize);
+        messageStoreConfig.setMappedFileSizeConsumeQueue(cqFileSize);
         messageStoreConfig.setMappedFileSizeConsumeQueueExt(cqExtFileSize);
         messageStoreConfig.setMessageIndexEnable(false);
         messageStoreConfig.setEnableConsumeQueueExt(enableCqExt);
@@ -126,7 +150,11 @@ public class ConsumeQueueTest {
         long totalMsgs = 200;
 
         for (long i = 0; i < totalMsgs; i++) {
-            master.putMessage(buildMessage());
+            if (i < totalMsgs / 2) {
+                master.putMessage(buildMessage());
+            } else {
+                master.putMessage(buildIPv6HostMessage());
+            }
         }
     }
 
@@ -212,6 +240,7 @@ public class ConsumeQueueTest {
         try {
             try {
                 putMsg(master);
+                Thread.sleep(3000L);//wait ConsumeQueue create success.
             } catch (Exception e) {
                 e.printStackTrace();
                 assertThat(Boolean.FALSE).isTrue();

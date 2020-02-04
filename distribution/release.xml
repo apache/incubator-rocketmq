@@ -17,7 +17,7 @@
   -->
 <assembly>
     <id>all</id>
-    <includeBaseDirectory>false</includeBaseDirectory>
+    <includeBaseDirectory>true</includeBaseDirectory>
     <formats>
         <format>dir</format>
         <format>tar.gz</format>
@@ -40,7 +40,7 @@
 
         <fileSet>
             <includes>
-                <include>bin/*</include>
+                <include>bin/**</include>
             </includes>
             <fileMode>0755</fileMode>
         </fileSet>

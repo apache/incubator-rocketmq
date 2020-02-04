@@ -67,11 +67,6 @@ public class QueryMsgByIdSubCommand implements SubCommand {
         );
 
         System.out.printf("%-20s %s%n",
-            "OffsetID:",
-            msgId
-        );
-
-        System.out.printf("%-20s %s%n",
             "Topic:",
             msg.getTopic()
         );

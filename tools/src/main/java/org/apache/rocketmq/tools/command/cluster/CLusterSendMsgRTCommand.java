@@ -53,7 +53,7 @@ public class CLusterSendMsgRTCommand implements SubCommand {
 
     @Override
     public Options buildCommandlineOptions(Options options) {
-        Option opt = new Option("a", "amout", true, "message amout | default 100");
+        Option opt = new Option("a", "amount", true, "message amount | default 100");
         opt.setRequired(false);
         options.addOption(opt);
 

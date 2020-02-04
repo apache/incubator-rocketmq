@@ -35,6 +35,7 @@ public class ConsumeMessageContext {
     private BrokerStatsManager.StatsType commercialRcvStats;
     private int commercialRcvTimes;
     private int commercialRcvSize;
+    private String namespace;
 
     public String getConsumerGroup() {
         return consumerGroup;
@@ -146,5 +147,13 @@ public class ConsumeMessageContext {
 
     public void setCommercialRcvSize(final int commercialRcvSize) {
         this.commercialRcvSize = commercialRcvSize;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 }

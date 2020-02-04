@@ -18,5 +18,5 @@
 package org.apache.rocketmq.common.constant;
 
 public class DBMsgConstants {
-    public static final int MAX_BODY_SIZE = 64 * 1024 * 1204; //64KB
+    public static final int MAX_BODY_SIZE = 64 * 1024 * 1024; //64KB
 }

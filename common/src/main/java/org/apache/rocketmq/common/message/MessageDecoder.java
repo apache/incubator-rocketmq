@@ -16,9 +16,7 @@
  */
 package org.apache.rocketmq.common.message;
 
-import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.common.sysflag.MessageSysFlag;
-
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -29,36 +27,41 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.rocketmq.common.UtilAll;
+import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 
 public class MessageDecoder {
-    public final static int MSG_ID_LENGTH = 8 + 8;
+//    public final static int MSG_ID_LENGTH = 8 + 8;
 
     public final static Charset CHARSET_UTF8 = Charset.forName("UTF-8");
     public final static int MESSAGE_MAGIC_CODE_POSTION = 4;
     public final static int MESSAGE_FLAG_POSTION = 16;
     public final static int MESSAGE_PHYSIC_OFFSET_POSTION = 28;
-    public final static int MESSAGE_STORE_TIMESTAMP_POSTION = 56;
+    //    public final static int MESSAGE_STORE_TIMESTAMP_POSTION = 56;
     public final static int MESSAGE_MAGIC_CODE = -626843481;
     public static final char NAME_VALUE_SEPARATOR = 1;
     public static final char PROPERTY_SEPARATOR = 2;
-    public static final int BODY_SIZE_POSITION = 4 // 1 TOTALSIZE
-        + 4 // 2 MAGICCODE
-        + 4 // 3 BODYCRC
-        + 4 // 4 QUEUEID
-        + 4 // 5 FLAG
-        + 8 // 6 QUEUEOFFSET
-        + 8 // 7 PHYSICALOFFSET
-        + 4 // 8 SYSFLAG
-        + 8 // 9 BORNTIMESTAMP
-        + 8 // 10 BORNHOST
-        + 8 // 11 STORETIMESTAMP
-        + 8 // 12 STOREHOSTADDRESS
-        + 4 // 13 RECONSUMETIMES
-        + 8; // 14 Prepared Transaction Offset
+    public static final int PHY_POS_POSITION = 4 + 4 + 4 + 4 + 4 + 8;
+    public static final int SYSFLAG_POSITION = 4 + 4 + 4 + 4 + 4 + 8 + 8;
+//    public static final int BODY_SIZE_POSITION = 4 // 1 TOTALSIZE
+//        + 4 // 2 MAGICCODE
+//        + 4 // 3 BODYCRC
+//        + 4 // 4 QUEUEID
+//        + 4 // 5 FLAG
+//        + 8 // 6 QUEUEOFFSET
+//        + 8 // 7 PHYSICALOFFSET
+//        + 4 // 8 SYSFLAG
+//        + 8 // 9 BORNTIMESTAMP
+//        + 8 // 10 BORNHOST
+//        + 8 // 11 STORETIMESTAMP
+//        + 8 // 12 STOREHOSTADDRESS
+//        + 4 // 13 RECONSUMETIMES
+//        + 8; // 14 Prepared Transaction Offset
 
     public static String createMessageId(final ByteBuffer input, final ByteBuffer addr, final long offset) {
         input.flip();
-        input.limit(MessageDecoder.MSG_ID_LENGTH);
+        int msgIDLength = addr.limit() == 8 ? 16 : 28;
+        input.limit(msgIDLength);
 
         input.put(addr);
         input.putLong(offset);
@@ -67,8 +70,9 @@ public class MessageDecoder {
     }
 
     public static String createMessageId(SocketAddress socketAddress, long transactionIdhashCode) {
-        ByteBuffer byteBuffer = ByteBuffer.allocate(MessageDecoder.MSG_ID_LENGTH);
         InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
+        int msgIDLength = inetSocketAddress.getAddress() instanceof Inet4Address ? 16 : 28;
+        ByteBuffer byteBuffer = ByteBuffer.allocate(msgIDLength);
         byteBuffer.put(inetSocketAddress.getAddress().getAddress());
         byteBuffer.putInt(inetSocketAddress.getPort());
         byteBuffer.putLong(transactionIdhashCode);
@@ -79,15 +83,16 @@ public class MessageDecoder {
     public static MessageId decodeMessageId(final String msgId) throws UnknownHostException {
         SocketAddress address;
         long offset;
+        int ipLength = msgId.length() == 32 ? 4 * 2 : 16 * 2;
 
-        byte[] ip = UtilAll.string2bytes(msgId.substring(0, 8));
-        byte[] port = UtilAll.string2bytes(msgId.substring(8, 16));
+        byte[] ip = UtilAll.string2bytes(msgId.substring(0, ipLength));
+        byte[] port = UtilAll.string2bytes(msgId.substring(ipLength, ipLength + 8));
         ByteBuffer bb = ByteBuffer.wrap(port);
         int portInt = bb.getInt(0);
         address = new InetSocketAddress(InetAddress.getByAddress(ip), portInt);
 
         // offset
-        byte[] data = UtilAll.string2bytes(msgId.substring(16, 32));
+        byte[] data = UtilAll.string2bytes(msgId.substring(ipLength + 8, ipLength + 8 + 16));
         bb = ByteBuffer.wrap(data);
         offset = bb.getLong(0);
 
@@ -100,7 +105,24 @@ public class MessageDecoder {
      * @param byteBuffer msg commit log buffer.
      */
     public static Map<String, String> decodeProperties(java.nio.ByteBuffer byteBuffer) {
-        int topicLengthPosition = BODY_SIZE_POSITION + 4 + byteBuffer.getInt(BODY_SIZE_POSITION);
+        int sysFlag = byteBuffer.getInt(SYSFLAG_POSITION);
+        int bornhostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 8 : 20;
+        int storehostAddressLength = (sysFlag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 8 : 20;
+        int bodySizePosition = 4 // 1 TOTALSIZE
+            + 4 // 2 MAGICCODE
+            + 4 // 3 BODYCRC
+            + 4 // 4 QUEUEID
+            + 4 // 5 FLAG
+            + 8 // 6 QUEUEOFFSET
+            + 8 // 7 PHYSICALOFFSET
+            + 4 // 8 SYSFLAG
+            + 8 // 9 BORNTIMESTAMP
+            + bornhostLength // 10 BORNHOST
+            + 8 // 11 STORETIMESTAMP
+            + storehostAddressLength // 12 STOREHOSTADDRESS
+            + 4 // 13 RECONSUMETIMES
+            + 8; // 14 Prepared Transaction Offset
+        int topicLengthPosition = bodySizePosition + 4 + byteBuffer.getInt(bodySizePosition);
 
         byte topicLength = byteBuffer.get(topicLengthPosition);
 
@@ -138,6 +160,8 @@ public class MessageDecoder {
         byte[] propertiesBytes = properties.getBytes(CHARSET_UTF8);
         short propertiesLength = (short) propertiesBytes.length;
         int sysFlag = messageExt.getSysFlag();
+        int bornhostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 8 : 20;
+        int storehostAddressLength = (sysFlag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 8 : 20;
         byte[] newBody = messageExt.getBody();
         if (needCompress && (sysFlag & MessageSysFlag.COMPRESSED_FLAG) == MessageSysFlag.COMPRESSED_FLAG) {
             newBody = UtilAll.compress(body, 5);
@@ -157,9 +181,9 @@ public class MessageDecoder {
                 + 8 // 7 PHYSICALOFFSET
                 + 4 // 8 SYSFLAG
                 + 8 // 9 BORNTIMESTAMP
-                + 8 // 10 BORNHOST
+                + bornhostLength // 10 BORNHOST
                 + 8 // 11 STORETIMESTAMP
-                + 8 // 12 STOREHOSTADDRESS
+                + storehostAddressLength // 12 STOREHOSTADDRESS
                 + 4 // 13 RECONSUMETIMES
                 + 8 // 14 Prepared Transaction Offset
                 + 4 + bodyLength // 14 BODY
@@ -290,8 +314,9 @@ public class MessageDecoder {
             msgExt.setBornTimestamp(bornTimeStamp);
 
             // 10 BORNHOST
-            byte[] bornHost = new byte[4];
-            byteBuffer.get(bornHost, 0, 4);
+            int bornhostIPLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 4 : 16;
+            byte[] bornHost = new byte[bornhostIPLength];
+            byteBuffer.get(bornHost, 0, bornhostIPLength);
             int port = byteBuffer.getInt();
             msgExt.setBornHost(new InetSocketAddress(InetAddress.getByAddress(bornHost), port));
 
@@ -300,8 +325,9 @@ public class MessageDecoder {
             msgExt.setStoreTimestamp(storeTimestamp);
 
             // 12 STOREHOST
-            byte[] storeHost = new byte[4];
-            byteBuffer.get(storeHost, 0, 4);
+            int storehostIPLength = (sysFlag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 : 16;
+            byte[] storeHost = new byte[storehostIPLength];
+            byteBuffer.get(storeHost, 0, storehostIPLength);
             port = byteBuffer.getInt();
             msgExt.setStoreHost(new InetSocketAddress(InetAddress.getByAddress(storeHost), port));
 
@@ -347,7 +373,8 @@ public class MessageDecoder {
                 msgExt.setProperties(map);
             }
 
-            ByteBuffer byteBufferMsgId = ByteBuffer.allocate(MSG_ID_LENGTH);
+            int msgIDLength = storehostIPLength + 4 + 8;
+            ByteBuffer byteBufferMsgId = ByteBuffer.allocate(msgIDLength);
             String msgId = createMessageId(byteBufferMsgId, msgExt.getStoreHostBytes(), msgExt.getCommitLogOffset());
             msgExt.setMsgId(msgId);
 

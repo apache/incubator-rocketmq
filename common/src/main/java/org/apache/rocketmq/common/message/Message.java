@@ -161,6 +161,10 @@ public class Message implements Serializable {
         this.putProperty(MessageConst.PROPERTY_WAIT_STORE_MSG_OK, Boolean.toString(waitStoreMsgOK));
     }
 
+    public void setInstanceId(String instanceId) {
+        this.putProperty(MessageConst.PROPERTY_INSTANCE_ID, instanceId);
+    }
+
     public int getFlag() {
         return flag;
     }

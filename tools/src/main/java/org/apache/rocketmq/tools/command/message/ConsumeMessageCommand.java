@@ -131,7 +131,7 @@ public class ConsumeMessageCommand implements SubCommand {
         try {
             /* Group name must be set before consumer start */
             if (commandLine.hasOption('g')) {
-                String consumerGroup = commandLine.getOptionValue('b').trim();
+                String consumerGroup = commandLine.getOptionValue('g').trim();
                 defaultMQPullConsumer.setConsumerGroup(consumerGroup);
             }
 

@@ -73,4 +73,11 @@ public class ResponseCode extends RemotingSysResponseCode {
     public static final int CONSUME_MSG_TIMEOUT = 207;
 
     public static final int NO_MESSAGE = 208;
+
+    public static final int UPDATE_AND_CREATE_ACL_CONFIG_FAILED = 209;
+
+    public static final int DELETE_ACL_CONFIG_FAILED = 210;
+
+    public static final int UPDATE_GLOBAL_WHITE_ADDRS_CONFIG_FAILED = 211;
+
 }

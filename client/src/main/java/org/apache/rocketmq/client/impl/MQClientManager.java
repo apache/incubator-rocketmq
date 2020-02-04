@@ -40,11 +40,11 @@ public class MQClientManager {
         return instance;
     }
 
-    public MQClientInstance getAndCreateMQClientInstance(final ClientConfig clientConfig) {
-        return getAndCreateMQClientInstance(clientConfig, null);
+    public MQClientInstance getOrCreateMQClientInstance(final ClientConfig clientConfig) {
+        return getOrCreateMQClientInstance(clientConfig, null);
     }
 
-    public MQClientInstance getAndCreateMQClientInstance(final ClientConfig clientConfig, RPCHook rpcHook) {
+    public MQClientInstance getOrCreateMQClientInstance(final ClientConfig clientConfig, RPCHook rpcHook) {
         String clientId = clientConfig.buildMQClientId();
         MQClientInstance instance = this.factoryTable.get(clientId);
         if (null == instance) {

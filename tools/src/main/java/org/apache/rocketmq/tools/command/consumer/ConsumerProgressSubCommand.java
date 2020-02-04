@@ -155,7 +155,7 @@ public class ConsumerProgressSubCommand implements SubCommand {
                 }
 
                 System.out.printf("%n");
-                System.out.printf("Consume TPS: %s%n", consumeStats.getConsumeTps());
+                System.out.printf("Consume TPS: %.2f%n", consumeStats.getConsumeTps());
                 System.out.printf("Diff Total: %d%n", diffTotal);
             } else {
                 System.out.printf("%-32s  %-6s  %-24s %-5s  %-14s  %-7s  %s%n",

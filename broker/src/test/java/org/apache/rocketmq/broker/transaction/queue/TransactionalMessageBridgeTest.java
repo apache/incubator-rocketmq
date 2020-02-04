@@ -167,6 +167,24 @@ public class TransactionalMessageBridgeTest {
         assertThat(messageExt).isNotNull();
     }
 
+    @Test
+    public void testGetHalfMessageStatusFound() {
+        when(messageStore
+                .getMessage(anyString(), anyString(), anyInt(), anyLong(), anyInt(), ArgumentMatchers.nullable(MessageFilter.class)))
+                .thenReturn(createGetMessageResult(GetMessageStatus.FOUND));
+        PullResult result = transactionBridge.getHalfMessage(0, 0, 1);
+        assertThat(result.getPullStatus()).isEqualTo(PullStatus.FOUND);
+    }
+
+    @Test
+    public void testGetHalfMessageNull() {
+        when(messageStore
+                .getMessage(anyString(), anyString(), anyInt(), anyLong(), anyInt(), ArgumentMatchers.nullable(MessageFilter.class)))
+                .thenReturn(null);
+        PullResult result = transactionBridge.getHalfMessage(0, 0, 1);
+        assertThat(result).isNull();
+    }
+
     private GetMessageResult createGetMessageResult(GetMessageStatus status) {
         GetMessageResult getMessageResult = new GetMessageResult();
         getMessageResult.setStatus(status);

@@ -24,6 +24,6 @@ public class RemotingConnectException extends RemotingException {
     }
 
     public RemotingConnectException(String addr, Throwable cause) {
-        super("connect to <" + addr + "> failed", cause);
+        super("connect to " + addr + " failed", cause);
     }
 }

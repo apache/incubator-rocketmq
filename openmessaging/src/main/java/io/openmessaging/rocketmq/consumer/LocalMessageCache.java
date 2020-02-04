@@ -73,7 +73,7 @@ class LocalMessageCache implements ServiceLifecycle {
                 pullOffsetTable.putIfAbsent(remoteQueue,
                     rocketmqPullConsumer.fetchConsumeOffset(remoteQueue, false));
             } catch (MQClientException e) {
-                log.error("A error occurred in fetch consume offset process.", e);
+                log.error("An error occurred in fetch consume offset process.", e);
             }
         }
         return pullOffsetTable.get(remoteQueue);
@@ -124,7 +124,7 @@ class LocalMessageCache implements ServiceLifecycle {
             try {
                 rocketmqPullConsumer.updateConsumeOffset(consumeRequest.getMessageQueue(), offset);
             } catch (MQClientException e) {
-                log.error("A error occurred in update consume offset process.", e);
+                log.error("An error occurred in update consume offset process.", e);
             }
         }
     }
@@ -135,7 +135,7 @@ class LocalMessageCache implements ServiceLifecycle {
         try {
             rocketmqPullConsumer.updateConsumeOffset(messageQueue, offset);
         } catch (MQClientException e) {
-            log.error("A error occurred in update consume offset process.", e);
+            log.error("An error occurred in update consume offset process.", e);
         }
     }
 

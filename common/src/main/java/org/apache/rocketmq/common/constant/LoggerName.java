@@ -19,6 +19,7 @@ package org.apache.rocketmq.common.constant;
 public class LoggerName {
     public static final String FILTERSRV_LOGGER_NAME = "RocketmqFiltersrv";
     public static final String NAMESRV_LOGGER_NAME = "RocketmqNamesrv";
+    public static final String NAMESRV_CONSOLE_NAME = "RocketmqNamesrvConsole";
     public static final String BROKER_LOGGER_NAME = "RocketmqBroker";
     public static final String BROKER_CONSOLE_NAME = "RocketmqConsole";
     public static final String CLIENT_LOGGER_NAME = "RocketmqClient";

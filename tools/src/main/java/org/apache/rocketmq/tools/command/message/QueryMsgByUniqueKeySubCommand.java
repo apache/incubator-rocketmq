@@ -39,6 +39,24 @@ import org.apache.rocketmq.tools.command.SubCommandException;
 
 public class QueryMsgByUniqueKeySubCommand implements SubCommand {
 
+    private DefaultMQAdminExt defaultMQAdminExt;
+
+    private DefaultMQAdminExt createMQAdminExt(RPCHook rpcHook) throws SubCommandException {
+        if (this.defaultMQAdminExt != null) {
+            return defaultMQAdminExt;
+        } else {
+            defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
+            defaultMQAdminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
+            try {
+                defaultMQAdminExt.start();
+            }
+            catch (Exception e) {
+                throw new SubCommandException(this.getClass().getSimpleName() + " command failed", e);
+            }
+            return defaultMQAdminExt;
+        }
+    }
+
     public static void queryById(final DefaultMQAdminExt admin, final String topic,
         final String msgId) throws MQClientException,
         RemotingException, MQBrokerException, InterruptedException, IOException {
@@ -182,11 +200,10 @@ public class QueryMsgByUniqueKeySubCommand implements SubCommand {
 
     @Override
     public void execute(CommandLine commandLine, Options options, RPCHook rpcHook) throws SubCommandException {
-        DefaultMQAdminExt defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
-        defaultMQAdminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
 
         try {
-            defaultMQAdminExt.start();
+
+            defaultMQAdminExt =  createMQAdminExt(rpcHook);
 
             final String msgId = commandLine.getOptionValue('i').trim();
             final String topic = commandLine.getOptionValue('t').trim();

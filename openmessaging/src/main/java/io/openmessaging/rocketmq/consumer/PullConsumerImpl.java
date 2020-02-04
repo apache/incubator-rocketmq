@@ -167,7 +167,7 @@ public class PullConsumerImpl implements PullConsumer {
                     }
                     localMessageCache.updatePullOffset(mq, pullResult.getNextBeginOffset());
                 } catch (Exception e) {
-                    log.error("A error occurred in pull message process.", e);
+                    log.error("An error occurred in pull message process.", e);
                 }
             }
         });

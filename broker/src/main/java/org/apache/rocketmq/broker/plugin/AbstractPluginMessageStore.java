@@ -30,6 +30,7 @@ import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.QueryMessageResult;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
+import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 public abstract class AbstractPluginMessageStore implements MessageStore {
     protected MessageStore next = null;
@@ -246,4 +247,9 @@ public abstract class AbstractPluginMessageStore implements MessageStore {
     public ConsumeQueue getConsumeQueue(String topic, int queueId) {
         return next.getConsumeQueue(topic, queueId);
     }
+
+    @Override
+    public BrokerStatsManager getBrokerStatsManager() {
+        return next.getBrokerStatsManager();
+    };
 }

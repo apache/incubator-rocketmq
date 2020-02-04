@@ -29,10 +29,15 @@ import org.apache.rocketmq.test.util.TestUtils;
 import org.apache.rocketmq.test.util.VerifyUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.google.common.truth.Truth.assertThat;
 
+/**
+ * Currently, dose not support the ordered broadcast message
+ */
+@Ignore
 public class OrderMsgBroadCastIT extends BaseBroadCastIT {
     private static Logger logger = Logger.getLogger(OrderMsgBroadCastIT.class);
     private RMQNormalProducer producer = null;

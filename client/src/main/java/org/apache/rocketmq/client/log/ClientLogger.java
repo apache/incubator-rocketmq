@@ -25,6 +25,7 @@ import org.apache.rocketmq.logging.inner.Layout;
 import org.apache.rocketmq.logging.inner.Level;
 import org.apache.rocketmq.logging.inner.Logger;
 import org.apache.rocketmq.logging.inner.LoggingBuilder;
+import org.apache.rocketmq.logging.inner.LoggingEvent;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
 public class ClientLogger {
@@ -43,7 +44,7 @@ public class ClientLogger {
 
     private static final boolean CLIENT_USE_SLF4J;
 
-    private static Appender rocketmqClientAppender = null;
+    //private static Appender rocketmqClientAppender = null;
 
     static {
         CLIENT_USE_SLF4J = Boolean.parseBoolean(System.getProperty(CLIENT_LOG_USESLF4J, "false"));
@@ -57,7 +58,7 @@ public class ClientLogger {
         }
     }
 
-    private static synchronized void createClientAppender() {
+    private static synchronized Appender createClientAppender() {
         String clientLogRoot = System.getProperty(CLIENT_LOG_ROOT, System.getProperty("user.home") + "/logs/rocketmqlogs");
         String clientLogMaxIndex = System.getProperty(CLIENT_LOG_MAXINDEX, "10");
         String clientLogFileName = System.getProperty(CLIENT_LOG_FILENAME, "rocketmq_client.log");
@@ -71,11 +72,12 @@ public class ClientLogger {
 
         Layout layout = LoggingBuilder.newLayoutBuilder().withDefaultLayout().build();
 
-        rocketmqClientAppender = LoggingBuilder.newAppenderBuilder()
+        Appender rocketmqClientAppender = LoggingBuilder.newAppenderBuilder()
             .withRollingFileAppender(logFileName, maxFileSize, maxFileIndex)
             .withAsync(false, queueSize).withName(ROCKETMQ_CLIENT_APPENDER_NAME).withLayout(layout).build();
 
         Logger.getRootLogger().addAppender(rocketmqClientAppender);
+        return rocketmqClientAppender;
     }
 
     private static InternalLogger createLogger(final String loggerName) {
@@ -85,11 +87,11 @@ public class ClientLogger {
         InnerLoggerFactory.InnerLogger innerLogger = (InnerLoggerFactory.InnerLogger) logger;
         Logger realLogger = innerLogger.getLogger();
 
-        if (rocketmqClientAppender == null) {
-            createClientAppender();
-        }
+        //if (rocketmqClientAppender == null) {
+        //   createClientAppender();
+        //}
 
-        realLogger.addAppender(rocketmqClientAppender);
+        realLogger.addAppender(new AppenderProxy());
         realLogger.setLevel(Level.toLevel(clientLogLevel));
         realLogger.setAdditivity(additive);
         return logger;
@@ -97,5 +99,24 @@ public class ClientLogger {
 
     public static InternalLogger getLog() {
         return CLIENT_LOGGER;
+    }
+
+    static class AppenderProxy extends Appender {
+        private Appender proxy;
+
+        @Override
+        protected void append(LoggingEvent event) {
+            if (null == proxy) {
+                proxy = ClientLogger.createClientAppender();
+            }
+            proxy.doAppend(event);
+        }
+
+        @Override
+        public void close() {
+            if (null != proxy) {
+                proxy.close();
+            }
+        }
     }
 }

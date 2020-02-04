@@ -31,17 +31,19 @@ public class MessageClientIDSetter {
     private static long nextStartTime;
 
     static {
-        LEN = 4 + 2 + 4 + 4 + 2;
-        ByteBuffer tempBuffer = ByteBuffer.allocate(10);
-        tempBuffer.position(2);
-        tempBuffer.putInt(UtilAll.getPid());
-        tempBuffer.position(0);
+        byte[] ip;
         try {
-            tempBuffer.put(UtilAll.getIP());
+            ip = UtilAll.getIP();
         } catch (Exception e) {
-            tempBuffer.put(createFakeIP());
+            ip = createFakeIP();
         }
-        tempBuffer.position(6);
+        LEN = ip.length + 2 + 4 + 4 + 2;
+        ByteBuffer tempBuffer = ByteBuffer.allocate(ip.length + 2 + 4);
+        tempBuffer.position(0);
+        tempBuffer.put(ip);
+        tempBuffer.position(ip.length);
+        tempBuffer.putInt(UtilAll.getPid());
+        tempBuffer.position(ip.length + 2);
         tempBuffer.putInt(MessageClientIDSetter.class.getClassLoader().hashCode());
         FIX_STRING = UtilAll.bytes2string(tempBuffer.array());
         setStartTime(System.currentTimeMillis());
@@ -64,11 +66,12 @@ public class MessageClientIDSetter {
     public static Date getNearlyTimeFromID(String msgID) {
         ByteBuffer buf = ByteBuffer.allocate(8);
         byte[] bytes = UtilAll.string2bytes(msgID);
+        int ipLength = bytes.length == 28 ? 16 : 4;
         buf.put((byte) 0);
         buf.put((byte) 0);
         buf.put((byte) 0);
         buf.put((byte) 0);
-        buf.put(bytes, 10, 4);
+        buf.put(bytes, ipLength + 2 + 4, 4);
         buf.position(0);
         long spanMS = buf.getLong();
         Calendar cal = Calendar.getInstance();
@@ -89,13 +92,18 @@ public class MessageClientIDSetter {
 
     public static String getIPStrFromID(String msgID) {
         byte[] ipBytes = getIPFromID(msgID);
-        return UtilAll.ipToIPv4Str(ipBytes);
+        if (ipBytes.length == 16) {
+            return UtilAll.ipToIPv6Str(ipBytes);
+        } else {
+            return UtilAll.ipToIPv4Str(ipBytes);
+        }
     }
 
     public static byte[] getIPFromID(String msgID) {
-        byte[] result = new byte[4];
         byte[] bytes = UtilAll.string2bytes(msgID);
-        System.arraycopy(bytes, 0, result, 0, 4);
+        int ipLength = bytes.length == 28 ? 16 : 4;
+        byte[] result = new byte[ipLength];
+        System.arraycopy(bytes, 0, result, 0, ipLength);
         return result;
     }
 

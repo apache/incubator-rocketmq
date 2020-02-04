@@ -17,18 +17,21 @@
   -->
 <assembly>
     <id>client</id>
-    <includeBaseDirectory>false</includeBaseDirectory>
+    <includeBaseDirectory>true</includeBaseDirectory>
     <formats>
         <format>dir</format>
         <format>tar.gz</format>
+        <format>zip</format>
     </formats>
 
-    <fileSet>
-        <directory>../</directory>
-        <includes>
-            <include>README.md</include>
-        </includes>
-    </fileSet>
+    <fileSets>
+        <fileSet>
+            <directory>../</directory>
+            <includes>
+                <include>README.md</include>
+            </includes>
+        </fileSet>
+    </fileSets>
 
     <files>
         <file>

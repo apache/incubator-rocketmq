@@ -52,7 +52,7 @@ import static org.mockito.Mockito.when;
 public class ClusterTestRequestProcessorTest {
     private ClusterTestRequestProcessor clusterTestProcessor;
     private DefaultMQAdminExtImpl defaultMQAdminExtImpl;
-    private MQClientInstance mqClientInstance = MQClientManager.getInstance().getAndCreateMQClientInstance(new ClientConfig());
+    private MQClientInstance mqClientInstance = MQClientManager.getInstance().getOrCreateMQClientInstance(new ClientConfig());
     private MQClientAPIImpl mQClientAPIImpl;
     private ChannelHandlerContext ctx;
 

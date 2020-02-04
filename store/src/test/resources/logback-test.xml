@@ -28,7 +28,7 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <root level="ERROR">
+    <root level="OFF">
         <appender-ref ref="STDOUT"/>
     </root>
 

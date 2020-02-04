@@ -26,6 +26,9 @@ import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -89,5 +92,19 @@ public class NettyRemotingAbstractTest {
         // Acquire the release permit after call back finished in current thread
         semaphore.acquire(1);
         assertThat(semaphore.availablePermits()).isEqualTo(0);
+    }
+
+    @Test
+    public void testScanResponseTable() {
+        int dummyId = 1;
+        // mock timeout
+        ResponseFuture responseFuture = new ResponseFuture(null,dummyId, -1000, new InvokeCallback() {
+            @Override
+            public void operationComplete(final ResponseFuture responseFuture) {
+            }
+        }, null);
+        remotingAbstract.responseTable.putIfAbsent(dummyId, responseFuture);
+        remotingAbstract.scanResponseTable();
+        assertNull(remotingAbstract.responseTable.get(dummyId));
     }
 }

@@ -49,7 +49,7 @@ public class CheckMsgSendRTCommand implements SubCommand {
         opt.setRequired(true);
         options.addOption(opt);
 
-        opt = new Option("a", "amout", true, "message amout | default 100");
+        opt = new Option("a", "amount", true, "message amount | default 100");
         opt.setRequired(false);
         options.addOption(opt);
 

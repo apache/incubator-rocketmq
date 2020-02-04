@@ -51,13 +51,17 @@ public class BrokerConfig {
     @ImportantField
     private boolean autoCreateSubscriptionGroup = true;
     private String messageStorePlugIn = "";
-
+    @ImportantField
+    private String msgTraceTopicName = MixAll.RMQ_SYS_TRACE_TOPIC;
+    @ImportantField
+    private boolean traceTopicEnable = false;
     /**
      * thread numbers for send message thread pool, since spin lock will be used by default since 4.0.x, the default
      * value is 1.
      */
     private int sendMessageThreadPoolNums = 1; //16 + Runtime.getRuntime().availableProcessors() * 4;
     private int pullMessageThreadPoolNums = 16 + Runtime.getRuntime().availableProcessors() * 2;
+    private int processReplyMessageThreadPoolNums = 16 + Runtime.getRuntime().availableProcessors() * 2;
     private int queryMessageThreadPoolNums = 8 + Runtime.getRuntime().availableProcessors();
 
     private int adminBrokerThreadPoolNums = 16;
@@ -80,6 +84,7 @@ public class BrokerConfig {
     private boolean fetchNamesrvAddrByAddressServer = false;
     private int sendThreadPoolQueueCapacity = 10000;
     private int pullThreadPoolQueueCapacity = 100000;
+    private int replyThreadPoolQueueCapacity = 10000;
     private int queryThreadPoolQueueCapacity = 20000;
     private int clientManagerThreadPoolQueueCapacity = 1000000;
     private int consumerManagerThreadPoolQueueCapacity = 1000000;
@@ -157,7 +162,7 @@ public class BrokerConfig {
      * that can be checked.
      */
     @ImportantField
-    private long transactionTimeOut = 3 * 1000;
+    private long transactionTimeOut = 6 * 1000;
 
     /**
      * The maximum number of times the message was checked, if exceed this value, this message will be discarded.
@@ -170,6 +175,24 @@ public class BrokerConfig {
      */
     @ImportantField
     private long transactionCheckInterval = 60 * 1000;
+
+    /**
+     * Acl feature switch
+     */
+    @ImportantField
+    private boolean aclEnable = false;
+
+    private boolean storeReplyMessageEnable = true;
+
+    public static String localHostName() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            log.error("Failed to obtain the host name", e);
+        }
+
+        return "DEFAULT_BROKER";
+    }
 
     public boolean isTraceOn() {
         return traceOn;
@@ -233,16 +256,6 @@ public class BrokerConfig {
 
     public void setSlaveReadEnable(final boolean slaveReadEnable) {
         this.slaveReadEnable = slaveReadEnable;
-    }
-
-    public static String localHostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            log.error("Failed to obtain the host name", e);
-        }
-
-        return "DEFAULT_BROKER";
     }
 
     public int getRegisterBrokerTimeoutMills() {
@@ -365,6 +378,14 @@ public class BrokerConfig {
         this.pullMessageThreadPoolNums = pullMessageThreadPoolNums;
     }
 
+    public int getProcessReplyMessageThreadPoolNums() {
+        return processReplyMessageThreadPoolNums;
+    }
+
+    public void setProcessReplyMessageThreadPoolNums(int processReplyMessageThreadPoolNums) {
+        this.processReplyMessageThreadPoolNums = processReplyMessageThreadPoolNums;
+    }
+
     public int getQueryMessageThreadPoolNums() {
         return queryMessageThreadPoolNums;
     }
@@ -459,6 +480,14 @@ public class BrokerConfig {
 
     public void setPullThreadPoolQueueCapacity(int pullThreadPoolQueueCapacity) {
         this.pullThreadPoolQueueCapacity = pullThreadPoolQueueCapacity;
+    }
+
+    public int getReplyThreadPoolQueueCapacity() {
+        return replyThreadPoolQueueCapacity;
+    }
+
+    public void setReplyThreadPoolQueueCapacity(int replyThreadPoolQueueCapacity) {
+        this.replyThreadPoolQueueCapacity = replyThreadPoolQueueCapacity;
     }
 
     public int getQueryThreadPoolQueueCapacity() {
@@ -731,5 +760,37 @@ public class BrokerConfig {
 
     public void setWaitTimeMillsInTransactionQueue(long waitTimeMillsInTransactionQueue) {
         this.waitTimeMillsInTransactionQueue = waitTimeMillsInTransactionQueue;
+    }
+
+    public String getMsgTraceTopicName() {
+        return msgTraceTopicName;
+    }
+
+    public void setMsgTraceTopicName(String msgTraceTopicName) {
+        this.msgTraceTopicName = msgTraceTopicName;
+    }
+
+    public boolean isTraceTopicEnable() {
+        return traceTopicEnable;
+    }
+
+    public void setTraceTopicEnable(boolean traceTopicEnable) {
+        this.traceTopicEnable = traceTopicEnable;
+    }
+
+    public boolean isAclEnable() {
+        return aclEnable;
+    }
+
+    public void setAclEnable(boolean aclEnable) {
+        this.aclEnable = aclEnable;
+    }
+
+    public boolean isStoreReplyMessageEnable() {
+        return storeReplyMessageEnable;
+    }
+
+    public void setStoreReplyMessageEnable(boolean storeReplyMessageEnable) {
+        this.storeReplyMessageEnable = storeReplyMessageEnable;
     }
 }

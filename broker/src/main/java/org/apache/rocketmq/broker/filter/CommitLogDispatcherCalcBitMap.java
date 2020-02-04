@@ -18,6 +18,7 @@
 package org.apache.rocketmq.broker.filter;
 
 import org.apache.rocketmq.common.BrokerConfig;
+import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
@@ -98,10 +99,10 @@ public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
 
             request.setBitMap(filterBitMap.bytes());
 
-            long eclipseTime = System.currentTimeMillis() - startTime;
+            long elapsedTime = UtilAll.computeElapsedTimeMilliseconds(startTime);
             // 1ms
-            if (eclipseTime >= 1) {
-                log.warn("Spend {} ms to calc bit map, consumerNum={}, topic={}", eclipseTime, filterDatas.size(), request.getTopic());
+            if (elapsedTime >= 1) {
+                log.warn("Spend {} ms to calc bit map, consumerNum={}, topic={}", elapsedTime, filterDatas.size(), request.getTopic());
             }
         } catch (Throwable e) {
             log.error("Calc bit map error! topic={}, offset={}, queueId={}, {}", request.getTopic(), request.getCommitLogOffset(), request.getQueueId(), e);
