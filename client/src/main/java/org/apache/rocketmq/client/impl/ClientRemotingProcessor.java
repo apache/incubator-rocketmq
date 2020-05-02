@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
 import org.apache.rocketmq.client.impl.producer.MQProducerInner;
@@ -50,7 +51,6 @@ import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.remoting.common.RemotingUtil;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.AsyncNettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
@@ -237,11 +237,11 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
             msg.setStoreTimestamp(requestHeader.getStoreTimestamp());
 
             if (requestHeader.getBornHost() != null) {
-                msg.setBornHost(RemotingUtil.string2SocketAddress(requestHeader.getBornHost()));
+                msg.setBornHostString(requestHeader.getBornHost());
             }
 
             if (requestHeader.getStoreHost() != null) {
-                msg.setStoreHost(RemotingUtil.string2SocketAddress(requestHeader.getStoreHost()));
+                msg.setStoreHostString(requestHeader.getStoreHost());
             }
 
             byte[] body = request.getBody();

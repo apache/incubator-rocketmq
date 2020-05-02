@@ -37,9 +37,11 @@ public class MessageExt extends Message {
     private int sysFlag;
     private long bornTimestamp;
     private SocketAddress bornHost;
+    private String bornHostString;
 
     private long storeTimestamp;
     private SocketAddress storeHost;
+    private String storeHostString;
     private String msgId;
     private long commitLogOffset;
     private int bodyCRC;
@@ -142,12 +144,20 @@ public class MessageExt extends Message {
     }
 
     public String getBornHostString() {
+        if (this.bornHostString != null) {
+            return this.bornHostString;
+        }
+
         if (this.bornHost != null) {
             InetSocketAddress inetSocketAddress = (InetSocketAddress) this.bornHost;
             return inetSocketAddress.getAddress().getHostAddress();
         }
 
         return null;
+    }
+
+    public void setBornHostString(String bornHostString) {
+        this.bornHostString = bornHostString;
     }
 
     public String getBornHostNameString() {
@@ -173,6 +183,14 @@ public class MessageExt extends Message {
 
     public void setStoreHost(SocketAddress storeHost) {
         this.storeHost = storeHost;
+    }
+
+    public String getStoreHostString() {
+        return storeHostString;
+    }
+
+    public void setStoreHostString(String storeHostString) {
+        this.storeHostString = storeHostString;
     }
 
     public String getMsgId() {
