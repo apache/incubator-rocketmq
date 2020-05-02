@@ -696,7 +696,7 @@ public class MQClientAPIImpl {
                 if (regionId == null || regionId.isEmpty()) {
                     regionId = MixAll.DEFAULT_TRACE_REGION_ID;
                 }
-                if (traceOn != null && traceOn.equals("false")) {
+                if ("false".equals(traceOn)) {
                     sendResult.setTraceOn(false);
                 } else {
                     sendResult.setTraceOn(true);

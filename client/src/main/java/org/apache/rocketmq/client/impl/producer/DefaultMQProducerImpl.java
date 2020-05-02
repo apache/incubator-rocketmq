@@ -767,7 +767,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     context.setMq(mq);
                     context.setNamespace(this.defaultMQProducer.getNamespace());
                     String isTrans = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
-                    if (isTrans != null && isTrans.equals("true")) {
+                    if ("true".equals(isTrans)) {
                         context.setMsgType(MessageType.Trans_Msg_Half);
                     }
 

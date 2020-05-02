@@ -93,7 +93,7 @@ public class ClientConfig {
     }
 
     public void changeInstanceNameToPID() {
-        if (this.instanceName.equals("DEFAULT")) {
+        if ("DEFAULT".equals(this.instanceName)) {
             this.instanceName = String.valueOf(UtilAll.getPid());
         }
     }

@@ -61,7 +61,7 @@ public class ConsumeMessageTraceHookImpl implements ConsumeMessageHook {
             String regionId = msg.getProperty(MessageConst.PROPERTY_MSG_REGION);
             String traceOn = msg.getProperty(MessageConst.PROPERTY_TRACE_SWITCH);
 
-            if (traceOn != null && traceOn.equals("false")) {
+            if (traceOn != null && "false".equals(traceOn)) {
                 // If trace switch is false ,skip it
                 continue;
             }
