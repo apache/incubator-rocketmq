@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.BrokerPathConfigHelper;
 import org.apache.rocketmq.common.ConfigManager;
+import org.apache.rocketmq.common.DataVersion;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -39,11 +40,9 @@ public class ConsumerOffsetManager extends ConfigManager {
 
     private ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
         new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);
+    private final DataVersion dataVersion = new DataVersion();
 
     private transient BrokerController brokerController;
-
-    public ConsumerOffsetManager() {
-    }
 
     public ConsumerOffsetManager(BrokerController brokerController) {
         this.brokerController = brokerController;
@@ -71,14 +70,12 @@ public class ConsumerOffsetManager extends ConfigManager {
     private boolean offsetBehindMuchThanData(final String topic, ConcurrentMap<Integer, Long> table) {
         Iterator<Entry<Integer, Long>> it = table.entrySet().iterator();
         boolean result = !table.isEmpty();
-
         while (it.hasNext() && result) {
             Entry<Integer, Long> next = it.next();
             long minOffsetInStore = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, next.getKey());
             long offsetInPersist = next.getValue();
             result = offsetInPersist <= minOffsetInStore;
         }
-
         return result;
     }
 
@@ -96,7 +93,6 @@ public class ConsumerOffsetManager extends ConfigManager {
                 }
             }
         }
-
         return topics;
     }
 
@@ -114,7 +110,6 @@ public class ConsumerOffsetManager extends ConfigManager {
                 }
             }
         }
-
         return groups;
     }
 
@@ -148,7 +143,6 @@ public class ConsumerOffsetManager extends ConfigManager {
             if (offset != null)
                 return offset;
         }
-
         return -1;
     }
 
@@ -184,7 +178,6 @@ public class ConsumerOffsetManager extends ConfigManager {
     }
 
     public Map<Integer, Long> queryMinOffsetInAllGroup(final String topic, final String filterGroups) {
-
         Map<Integer, Long> queueMinOffset = new HashMap<Integer, Long>();
         Set<String> topicGroups = this.offsetTable.keySet();
         if (!UtilAll.isBlank(filterGroups)) {
@@ -197,7 +190,6 @@ public class ConsumerOffsetManager extends ConfigManager {
                 }
             }
         }
-
         for (Map.Entry<String, ConcurrentMap<Integer, Long>> offSetEntry : this.offsetTable.entrySet()) {
             String topicGroup = offSetEntry.getKey();
             String[] topicGroupArr = topicGroup.split(TOPIC_GROUP_SEPARATOR);
@@ -214,7 +206,6 @@ public class ConsumerOffsetManager extends ConfigManager {
                     }
                 }
             }
-
         }
         return queueMinOffset;
     }
@@ -232,4 +223,26 @@ public class ConsumerOffsetManager extends ConfigManager {
         }
     }
 
+    public DataVersion getDataVersion() {
+        return dataVersion;
+    }
+
+    public void cleanConsumerOffsetList(final String groupName) {
+        for (Entry<String, ConcurrentMap<Integer, Long>> map : this.offsetTable.entrySet()) {
+            int indexAtGroup = map.getKey().lastIndexOf(TOPIC_GROUP_SEPARATOR + groupName);
+            if (indexAtGroup != -1) {
+                // this topicName Contain system auto create example:%RETRY%+Topic+Group
+                String topic = map.getKey().substring(0,indexAtGroup);
+                String cleanTopicAtGroup = topic + TOPIC_GROUP_SEPARATOR + groupName;
+                ConcurrentMap<Integer, Long> result = this.offsetTable.remove(cleanTopicAtGroup);
+                if (result != null) {
+                    log.info("cleanOffset OK in offsetTable  Topic@subscription: {} ", cleanTopicAtGroup);
+                    this.dataVersion.nextVersion();
+                    this.persist();
+                } else {
+                    log.warn("cleanOffset failed in offsetTable Topic@subscription: {} not exist", cleanTopicAtGroup);
+                }
+            }
+        }
+    }
 }
