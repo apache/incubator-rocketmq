@@ -102,8 +102,10 @@ public class IndexFile {
                 // fileLock = this.fileChannel.lock(absSlotPos, hashSlotSize,
                 // false);
                 int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
+                boolean incHashSlotCount=false;
                 if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()) {
                     slotValue = invalidIndex;
+                    incHashSlotCount=true;
                 }
 
                 long timeDiff = storeTimestamp - this.indexHeader.getBeginTimestamp();
@@ -133,8 +135,9 @@ public class IndexFile {
                     this.indexHeader.setBeginPhyOffset(phyOffset);
                     this.indexHeader.setBeginTimestamp(storeTimestamp);
                 }
-
-                this.indexHeader.incHashSlotCount();
+                if (incHashSlotCount) {
+                    this.indexHeader.incHashSlotCount();
+                }
                 this.indexHeader.incIndexCount();
                 this.indexHeader.setEndPhyOffset(phyOffset);
                 this.indexHeader.setEndTimestamp(storeTimestamp);
