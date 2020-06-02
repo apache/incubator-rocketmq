@@ -17,16 +17,15 @@
 
 package org.apache.rocketmq.client.common;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ThreadLocalIndex {
     private final ThreadLocal<Integer> threadLocalIndex = new ThreadLocal<Integer>();
-    private final Random random = new Random();
 
     public int getAndIncrement() {
         Integer index = this.threadLocalIndex.get();
         if (null == index) {
-            index = Math.abs(random.nextInt());
+            index = Math.abs(ThreadLocalRandom.current().nextInt());
             if (index < 0)
                 index = 0;
             this.threadLocalIndex.set(index);

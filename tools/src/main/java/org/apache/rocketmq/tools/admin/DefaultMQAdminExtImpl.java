@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.QueryResult;
 import org.apache.rocketmq.client.admin.MQAdminExtInner;
@@ -97,7 +97,6 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
     private MQClientInstance mqClientInstance;
     private RPCHook rpcHook;
     private long timeoutMillis = 20000;
-    private Random random = new Random();
 
     public DefaultMQAdminExtImpl(DefaultMQAdminExt defaultMQAdminExt, long timeoutMillis) {
         this(defaultMQAdminExt, null, timeoutMillis);
@@ -331,7 +330,7 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
         ConsumerConnection result = new ConsumerConnection();
         String topic = MixAll.getRetryTopic(consumerGroup);
         List<BrokerData> brokers = this.examineTopicRouteInfo(topic).getBrokerDatas();
-        BrokerData brokerData = brokers.get(random.nextInt(brokers.size()));
+        BrokerData brokerData = brokers.get(ThreadLocalRandom.current().nextInt(brokers.size()));
         String addr = null;
         if (brokerData != null) {
             addr = brokerData.selectBrokerAddr();
@@ -354,7 +353,7 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
         MQClientException, InterruptedException, MQBrokerException {
         ProducerConnection result = new ProducerConnection();
         List<BrokerData> brokers = this.examineTopicRouteInfo(topic).getBrokerDatas();
-        BrokerData brokerData = brokers.get(random.nextInt(brokers.size()));
+        BrokerData brokerData = brokers.get(ThreadLocalRandom.current().nextInt(brokers.size()));
         String addr = null;
         if (brokerData != null) {
             addr = brokerData.selectBrokerAddr();

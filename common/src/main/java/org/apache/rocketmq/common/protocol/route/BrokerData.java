@@ -20,7 +20,7 @@ package org.apache.rocketmq.common.protocol.route;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.rocketmq.common.MixAll;
 
 public class BrokerData implements Comparable<BrokerData> {
@@ -28,7 +28,6 @@ public class BrokerData implements Comparable<BrokerData> {
     private String brokerName;
     private HashMap<Long/* brokerId */, String/* broker address */> brokerAddrs;
 
-    private final Random random = new Random();
 
     public BrokerData() {
 
@@ -51,7 +50,7 @@ public class BrokerData implements Comparable<BrokerData> {
 
         if (addr == null) {
             List<String> addrs = new ArrayList<String>(brokerAddrs.values());
-            return addrs.get(random.nextInt(addrs.size()));
+            return addrs.get(ThreadLocalRandom.current().nextInt(addrs.size()));
         }
 
         return addr;

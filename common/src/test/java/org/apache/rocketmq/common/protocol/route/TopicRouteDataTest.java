@@ -108,4 +108,16 @@ public class TopicRouteDataTest {
         assertThat(topicRouteDataFromJson.getQueueDatas()).isEqualTo(topicRouteData.getQueueDatas());
 
     }
+
+    @Test
+    public void testSelectBrokerAddr(){
+        HashMap<Long, String> brokerAddrs = new HashMap<Long, String>();
+        brokerAddrs.put(1L, "192.168.0.47:10921");
+        BrokerData brokerData = new BrokerData();
+        brokerData.setBrokerAddrs(brokerAddrs);
+        brokerData.setBrokerName("broker-a");
+        brokerData.setCluster("TestCluster");
+        String addr = brokerData.selectBrokerAddr();
+        assertThat(addr).isNotBlank();
+    }
 }
