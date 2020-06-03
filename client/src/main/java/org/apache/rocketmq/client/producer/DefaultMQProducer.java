@@ -116,6 +116,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
     /**
+     * Maximum millis to wait asyncSenderExecutor terminate
+     */
+    private int asyncSenderTerminateTimeout = 5000;
+
+    /**
      * Interface of asynchronous transfer data
      */
     private TraceDispatcher traceDispatcher = null;
@@ -1066,4 +1071,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         return traceDispatcher;
     }
 
+    public void setAsyncSenderTerminateTimeout(int asyncSenderTerminateTimeout) {
+        this.asyncSenderTerminateTimeout = asyncSenderTerminateTimeout;
+    }
+
+    public int getAsyncSenderTerminateTimeout() {
+        return asyncSenderTerminateTimeout;
+    }
 }
