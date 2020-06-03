@@ -193,6 +193,8 @@ public class MQClientAPIImpl {
 
         this.remotingClient.registerProcessor(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, this.clientRemotingProcessor, null);
 
+        this.remotingClient.registerProcessor(RequestCode.NOTIFY_TOPIC_CONFIG_CHANGED, this.clientRemotingProcessor, null);
+
         this.remotingClient.registerProcessor(RequestCode.RESET_CONSUMER_CLIENT_OFFSET, this.clientRemotingProcessor, null);
 
         this.remotingClient.registerProcessor(RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT, this.clientRemotingProcessor, null);

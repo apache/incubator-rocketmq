@@ -17,6 +17,7 @@
 package org.apache.rocketmq.broker.client.net;
 
 import io.netty.channel.Channel;
+import java.util.Set;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.client.ClientChannelInfo;
 import org.apache.rocketmq.broker.client.ConsumerGroupInfo;
@@ -36,6 +37,7 @@ import org.apache.rocketmq.common.protocol.body.ResetOffsetBodyForC;
 import org.apache.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetConsumerStatusRequestHeader;
 import org.apache.rocketmq.common.protocol.header.NotifyConsumerIdsChangedRequestHeader;
+import org.apache.rocketmq.common.protocol.header.NotifyTopicConfigChangeRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
@@ -98,6 +100,31 @@ public class Broker2Client {
             this.brokerController.getRemotingServer().invokeOneway(channel, request, 10);
         } catch (Exception e) {
             log.error("notifyConsumerIdsChanged exception. group={}, error={}", consumerGroup, e.toString());
+        }
+    }
+
+    public void notifyWhenTopicConfigChange(String topic) {
+        Set<String> topicConsumeByWho = this.brokerController.getConsumerManager().queryTopicConsumeByWho(topic);
+        for (String group : topicConsumeByWho) {
+            ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(group);
+            if (consumerGroupInfo != null) {
+                List<Channel> channelList = consumerGroupInfo.getAllChannel();
+                for (Channel channel : channelList) {
+                    this.brokerController.getBroker2Client().notifyTopicConfigChange(channel, topic);
+                }
+            }
+        }
+    }
+
+    public void notifyTopicConfigChange(final Channel channel, String topic) {
+        NotifyTopicConfigChangeRequestHeader notifyTopicConfigChangeRequestHeader = new NotifyTopicConfigChangeRequestHeader();
+        notifyTopicConfigChangeRequestHeader.setTopic(topic);
+        RemotingCommand remotingCommand = RemotingCommand.createRequestCommand(RequestCode.NOTIFY_TOPIC_CONFIG_CHANGED, notifyTopicConfigChangeRequestHeader);
+        remotingCommand.markOnewayRPC();
+        try {
+            this.brokerController.getRemotingServer().invokeOneway(channel, remotingCommand, 500);
+        } catch (Exception e) {
+            log.error("notifyTopicConfigChanged exception, " + topic, e.getMessage());
         }
     }
 

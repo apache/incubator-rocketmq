@@ -45,6 +45,7 @@ import org.apache.rocketmq.common.protocol.header.ConsumeMessageDirectlyResultRe
 import org.apache.rocketmq.common.protocol.header.GetConsumerRunningInfoRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetConsumerStatusRequestHeader;
 import org.apache.rocketmq.common.protocol.header.NotifyConsumerIdsChangedRequestHeader;
+import org.apache.rocketmq.common.protocol.header.NotifyTopicConfigChangeRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ReplyMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
@@ -72,6 +73,8 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
                 return this.checkTransactionState(ctx, request);
             case RequestCode.NOTIFY_CONSUMER_IDS_CHANGED:
                 return this.notifyConsumerIdsChanged(ctx, request);
+            case RequestCode.NOTIFY_TOPIC_CONFIG_CHANGED:
+                return this.notifyTopicConfigChanged(ctx, request);
             case RequestCode.RESET_CONSUMER_CLIENT_OFFSET:
                 return this.resetOffset(ctx, request);
             case RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT:
@@ -138,6 +141,22 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
             log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately",
                 RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
                 requestHeader.getConsumerGroup());
+            this.mqClientFactory.rebalanceImmediately();
+        } catch (Exception e) {
+            log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));
+        }
+        return null;
+    }
+
+    public RemotingCommand notifyTopicConfigChanged(ChannelHandlerContext ctx,
+        RemotingCommand request) throws RemotingCommandException {
+        try {
+            final NotifyTopicConfigChangeRequestHeader requestHeader =
+                (NotifyTopicConfigChangeRequestHeader) request.decodeCommandCustomHeader(NotifyTopicConfigChangeRequestHeader.class);
+            log.info("receive broker's notification[{}], topic config: {} changed, update topic route info and rebalance immediately",
+                RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                requestHeader.getTopic());
+            this.mqClientFactory.updateTopicRouteInfoFromNameServer(requestHeader.getTopic());
             this.mqClientFactory.rebalanceImmediately();
         } catch (Exception e) {
             log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));

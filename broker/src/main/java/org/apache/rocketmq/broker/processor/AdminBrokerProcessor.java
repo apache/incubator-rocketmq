@@ -285,6 +285,8 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
 
         this.brokerController.registerIncrementBrokerData(topicConfig, this.brokerController.getTopicConfigManager().getDataVersion());
 
+        this.brokerController.getBroker2Client().notifyWhenTopicConfigChange(topicConfig.getTopicName());
+
         return null;
     }
 
