@@ -394,7 +394,8 @@ public class MQClientAPIImpl {
 
     }
 
-    public AclConfig getBrokerClusterConfig(final String addr, final long timeoutMillis) throws RemotingCommandException, InterruptedException, RemotingTimeoutException,
+    public AclConfig getBrokerClusterConfig(final String addr,
+        final long timeoutMillis) throws RemotingCommandException, InterruptedException, RemotingTimeoutException,
         RemotingSendRequestException, RemotingConnectException, MQBrokerException {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_BROKER_CLUSTER_ACL_CONFIG, null);
 
@@ -404,7 +405,7 @@ public class MQClientAPIImpl {
             case ResponseCode.SUCCESS: {
                 if (response.getBody() != null) {
                     GetBrokerClusterAclConfigResponseBody body =
-                            GetBrokerClusterAclConfigResponseBody.decode(response.getBody(), GetBrokerClusterAclConfigResponseBody.class);
+                        GetBrokerClusterAclConfigResponseBody.decode(response.getBody(), GetBrokerClusterAclConfigResponseBody.class);
                     AclConfig aclConfig = new AclConfig();
                     aclConfig.setGlobalWhiteAddrs(body.getGlobalWhiteAddrs());
                     aclConfig.setPlainAccessConfigs(body.getPlainAccessConfigs());
@@ -1654,8 +1655,16 @@ public class MQClientAPIImpl {
     public GroupList queryTopicConsumeByWho(final String addr, final String topic, final long timeoutMillis)
         throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException,
         MQBrokerException {
+        return queryTopicConsumeByWho(addr, topic, true, timeoutMillis);
+    }
+
+    public GroupList queryTopicConsumeByWho(final String addr, final String topic, final boolean ignoreDeletedGroup,
+        final long timeoutMillis)
+        throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException,
+        MQBrokerException {
         QueryTopicConsumeByWhoRequestHeader requestHeader = new QueryTopicConsumeByWhoRequestHeader();
         requestHeader.setTopic(topic);
+        requestHeader.setIgnoreDeteled(ignoreDeletedGroup);
 
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.QUERY_TOPIC_CONSUME_BY_WHO, requestHeader);
 

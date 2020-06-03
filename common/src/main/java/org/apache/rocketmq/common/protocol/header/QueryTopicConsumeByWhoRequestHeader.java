@@ -28,6 +28,8 @@ public class QueryTopicConsumeByWhoRequestHeader implements CommandCustomHeader 
     @CFNotNull
     private String topic;
 
+    private boolean ignoreDeteled;
+
     @Override
     public void checkFields() throws RemotingCommandException {
 
@@ -39,5 +41,13 @@ public class QueryTopicConsumeByWhoRequestHeader implements CommandCustomHeader 
 
     public void setTopic(String topic) {
         this.topic = topic;
+    }
+
+    public boolean isIgnoreDeteled() {
+        return ignoreDeteled;
+    }
+
+    public void setIgnoreDeteled(boolean ignore) {
+        this.ignoreDeteled = ignore;
     }
 }

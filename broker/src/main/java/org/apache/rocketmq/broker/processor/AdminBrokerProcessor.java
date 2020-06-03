@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+
 import org.apache.rocketmq.acl.AccessValidator;
 import org.apache.rocketmq.acl.plain.PlainAccessValidator;
 import org.apache.rocketmq.broker.BrokerController;
@@ -421,7 +422,7 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
 
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetBrokerAclConfigResponseHeader.class);
 
-        final GetBrokerAclConfigResponseHeader responseHeader = (GetBrokerAclConfigResponseHeader)response.readCustomHeader();
+        final GetBrokerAclConfigResponseHeader responseHeader = (GetBrokerAclConfigResponseHeader) response.readCustomHeader();
 
         try {
             AccessValidator accessValidator = this.brokerController.getAccessValidatorMap().get(PlainAccessValidator.class);
@@ -430,7 +431,7 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
             responseHeader.setBrokerAddr(this.brokerController.getBrokerAddr());
             responseHeader.setBrokerName(this.brokerController.getBrokerConfig().getBrokerName());
             responseHeader.setClusterName(this.brokerController.getBrokerConfig().getBrokerClusterName());
-            
+
             response.setCode(ResponseCode.SUCCESS);
             response.setRemark(null);
             return response;
@@ -1031,8 +1032,19 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
             groups.addAll(groupInOffset);
         }
 
+        HashSet<String> filteredGroups = new HashSet<String>();
+        if (requestHeader.isIgnoreDeteled()) {
+            for (String group : groups) {
+                if (this.brokerController.getSubscriptionGroupManager().getSubscriptionGroupTable().containsKey(group)) {
+                    filteredGroups.add(group);
+                }
+            }
+        } else {
+            filteredGroups = groups;
+        }
+
         GroupList groupList = new GroupList();
-        groupList.setGroupList(groups);
+        groupList.setGroupList(filteredGroups);
         byte[] body = groupList.encode();
 
         response.setBody(body);
