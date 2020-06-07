@@ -14,30 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.client;
+package org.apache.rocketmq.example.openmessaging.producer;
 
-/**
- * Used for set access channel, if need migrate the rocketmq service to cloud, it is We recommend set the value with
- * "CLOUD". otherwise set with "LOCAL", especially used the message trace feature.
- */
-public enum AccessChannel {
-    /**
-     * Means connect to private IDC cluster.
-     */
-    LOCAL("LOCAL"),
+import io.openmessaging.api.Message;
+import io.openmessaging.api.transaction.LocalTransactionChecker;
+import io.openmessaging.api.transaction.TransactionStatus;
 
-    /**
-     * Means connect to Cloud service.
-     */
-    CLOUD("CLOUD");
+public class LocalTransactionCheckerImpl implements LocalTransactionChecker {
 
-    private String accessChannel;
-
-    AccessChannel(String accessChannel) {
-        this.accessChannel = accessChannel;
-    }
-
-    public String getAccessChannel() {
-        return accessChannel;
+    @Override
+    public TransactionStatus check(Message msg) {
+        System.out.printf("Commit transaction check request %n");
+        return TransactionStatus.CommitTransaction;
     }
 }

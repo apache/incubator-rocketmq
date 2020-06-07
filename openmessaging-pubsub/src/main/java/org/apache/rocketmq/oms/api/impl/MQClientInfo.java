@@ -14,30 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.client;
 
-/**
- * Used for set access channel, if need migrate the rocketmq service to cloud, it is We recommend set the value with
- * "CLOUD". otherwise set with "LOCAL", especially used the message trace feature.
- */
-public enum AccessChannel {
-    /**
-     * Means connect to private IDC cluster.
-     */
-    LOCAL("LOCAL"),
+package org.apache.rocketmq.oms.api.impl;
 
-    /**
-     * Means connect to Cloud service.
-     */
-    CLOUD("CLOUD");
+import java.io.InputStream;
+import java.util.Properties;
+import org.apache.rocketmq.common.MQVersion;
 
-    private String accessChannel;
+public class MQClientInfo {
 
-    AccessChannel(String accessChannel) {
-        this.accessChannel = accessChannel;
+    public static int versionCode = MQVersion.CURRENT_VERSION;
+    public static String currentVersion;
+
+    static {
+        try {
+            InputStream stream = MQClientInfo.class.getClassLoader().getResourceAsStream("ons_client_info.properties");
+            Properties properties = new Properties();
+            properties.load(stream);
+            currentVersion = String.valueOf(properties.get("version"));
+            versionCode = Integer.MAX_VALUE - Integer.valueOf(currentVersion.replaceAll("[^0-9]", ""));
+        } catch (Exception ignore) {
+        }
     }
 
-    public String getAccessChannel() {
-        return accessChannel;
-    }
 }

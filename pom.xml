@@ -125,6 +125,7 @@
         <module>test</module>
         <module>distribution</module>
         <module>openmessaging</module>
+        <module>openmessaging-pubsub</module>
         <module>logging</module>
         <module>acl</module>
     </modules>

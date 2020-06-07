@@ -15,8 +15,9 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>rocketmq-all</artifactId>
         <groupId>org.apache.rocketmq</groupId>
@@ -24,18 +25,24 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>rocketmq-openmessaging</artifactId>
-    <name>rocketmq-openmessaging ${project.version}</name>
+    <artifactId>rocketmq-openmessaging-pubsub</artifactId>
+    <name>rocketmq-openmessaging-pubsub ${project.version}</name>
 
     <dependencies>
         <dependency>
             <groupId>io.openmessaging</groupId>
             <artifactId>openmessaging-api</artifactId>
+            <version>2.0.1-pubsub</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-acl</artifactId>
         </dependency>
     </dependencies>
 </project>

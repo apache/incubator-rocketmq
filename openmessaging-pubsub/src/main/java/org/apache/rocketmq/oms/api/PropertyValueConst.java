@@ -14,30 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.client;
+package org.apache.rocketmq.oms.api;
 
-/**
- * Used for set access channel, if need migrate the rocketmq service to cloud, it is We recommend set the value with
- * "CLOUD". otherwise set with "LOCAL", especially used the message trace feature.
- */
-public enum AccessChannel {
-    /**
-     * Means connect to private IDC cluster.
-     */
-    LOCAL("LOCAL"),
+public class PropertyValueConst {
 
-    /**
-     * Means connect to Cloud service.
-     */
-    CLOUD("CLOUD");
+    public static final String BROADCASTING = "BROADCASTING";
 
-    private String accessChannel;
+    public static final String CLUSTERING = "CLUSTERING";
 
-    AccessChannel(String accessChannel) {
-        this.accessChannel = accessChannel;
-    }
+    public static final String CLOUD = "CLOUD";
 
-    public String getAccessChannel() {
-        return accessChannel;
-    }
+    public static final String LOCAL = "LOCAL";
+
 }

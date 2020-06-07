@@ -14,30 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.client;
+package org.apache.rocketmq.example.openmessaging;
 
-/**
- * Used for set access channel, if need migrate the rocketmq service to cloud, it is We recommend set the value with
- * "CLOUD". otherwise set with "LOCAL", especially used the message trace feature.
- */
-public enum AccessChannel {
-    /**
-     * Means connect to private IDC cluster.
-     */
-    LOCAL("LOCAL"),
 
-    /**
-     * Means connect to Cloud service.
-     */
-    CLOUD("CLOUD");
+public class MqConfig {
 
-    private String accessChannel;
+    public static final String GROUP_ID = "GID-test";
 
-    AccessChannel(String accessChannel) {
-        this.accessChannel = accessChannel;
-    }
+    public static final String ORDER_TOPIC = "order-topic";
+    public static final String TRANSACTION_TOPIC = "transaction-topic";
+    public static final String TAG = "mq_test_tag";
 
-    public String getAccessChannel() {
-        return accessChannel;
-    }
+    public static final String ACCESS_KEY = "accessKey";
+    public static final String SECRET_KEY = "secretKey";
+
+
+    public static final String ENDPOINT = "localhost:9876";
+
+    public static final String DRIVER = "rocketmq";
 }

@@ -75,8 +75,9 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
     private AccessChannel accessChannel = AccessChannel.LOCAL;
     private String group;
     private Type type;
+    private String nameServer;
 
-    public AsyncTraceDispatcher(String group, Type type,String traceTopicName, RPCHook rpcHook) {
+    public AsyncTraceDispatcher(String group, Type type, String traceTopicName, RPCHook rpcHook) {
         // queueSize is greater than or equal to the n power of 2 of value
         this.queueSize = 2048;
         this.batchSize = 100;
@@ -138,6 +139,14 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
         this.hostConsumer = hostConsumer;
     }
 
+    public String getNameServer() {
+        return nameServer;
+    }
+
+    public void setNameServer(String nameServer) {
+        this.nameServer = nameServer;
+    }
+
     public void start(String nameSrvAddr, AccessChannel accessChannel) throws MQClientException {
         if (isStarted.compareAndSet(false, true)) {
             traceProducer.setNamesrvAddr(nameSrvAddr);
@@ -149,6 +158,11 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
         this.worker.setDaemon(true);
         this.worker.start();
         this.registerShutDownHook();
+    }
+
+    @Override
+    public void start() throws MQClientException {
+        start(this.nameServer, this.accessChannel);
     }
 
     private DefaultMQProducer getAndCreateTraceProducer(RPCHook rpcHook) {
@@ -165,7 +179,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
     }
 
     private String genGroupNameForTrace() {
-        return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type ;
+        return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type;
     }
 
     @Override

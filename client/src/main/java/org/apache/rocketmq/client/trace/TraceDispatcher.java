@@ -33,6 +33,12 @@ public interface TraceDispatcher {
      */
     void start(String nameSrvAddr, AccessChannel accessChannel) throws MQClientException;
 
+
+    /**
+     * Initialize asynchronous transfer data module
+     */
+    void start() throws MQClientException;
+
     /**
      * Append the transfering data
      * @param ctx data infomation
