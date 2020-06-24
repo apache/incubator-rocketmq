@@ -209,7 +209,7 @@ public class AclUtils {
         boolean compress = false;
         int compressIndex = -1;
         String[] strArray = StringUtils.split(netaddress, ":");
-        ArrayList<Integer> indexes = new ArrayList<>();
+        ArrayList<Integer> indexes = new ArrayList<Integer>();
         for (int i = 0; i < netaddress.length(); i++) {
             if (netaddress.charAt(i) == ':') {
                 if (indexes.size() > 0 && i - indexes.get(indexes.size() - 1) == 1) {

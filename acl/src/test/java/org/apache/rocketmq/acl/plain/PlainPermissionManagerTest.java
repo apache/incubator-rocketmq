@@ -42,7 +42,7 @@ public class PlainPermissionManagerTest {
     PlainAccessResource DENYPlainAccessResource;
     PlainAccessResource plainAccessResource = new PlainAccessResource();
     PlainAccessConfig plainAccessConfig = new PlainAccessConfig();
-    Set<Integer> adminCode = new HashSet<>();
+    Set<Integer> adminCode = new HashSet<Integer>();
 
     @Before
     public void init() throws NoSuchFieldException, SecurityException, IOException {

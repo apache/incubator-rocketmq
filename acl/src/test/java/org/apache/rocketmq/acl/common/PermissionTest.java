@@ -97,7 +97,7 @@ public class PermissionTest {
         Permission.parseResourcePerms(plainAccessResource, false, null);
         Assert.assertNull(resourcePermMap);
 
-        List<String> groups = new ArrayList<>();
+        List<String> groups = new ArrayList<String>();
         Permission.parseResourcePerms(plainAccessResource, false, groups);
         Assert.assertNull(resourcePermMap);
 
@@ -116,7 +116,7 @@ public class PermissionTest {
         perm = resourcePermMap.get(PlainAccessResource.getRetryTopic("groupC"));
         Assert.assertEquals(perm, Permission.PUB);
 
-        List<String> topics = new ArrayList<>();
+        List<String> topics = new ArrayList<String>();
         topics.add("topicA=DENY");
         topics.add("topicB=PUB|SUB");
         topics.add("topicC=PUB");
@@ -132,14 +132,14 @@ public class PermissionTest {
         perm = resourcePermMap.get("topicC");
         Assert.assertEquals(perm, Permission.PUB);
 
-        List<String> erron = new ArrayList<>();
+        List<String> erron = new ArrayList<String>();
         erron.add("");
         Permission.parseResourcePerms(plainAccessResource, false, erron);
     }
 
     @Test
     public void checkAdminCodeTest() {
-        Set<Integer> code = new HashSet<>();
+        Set<Integer> code = new HashSet<Integer>();
         code.add(17);
         code.add(25);
         code.add(215);

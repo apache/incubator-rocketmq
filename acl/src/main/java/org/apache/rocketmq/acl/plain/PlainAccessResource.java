@@ -89,7 +89,7 @@ public class PlainAccessResource implements AccessResource {
             return;
         }
         if (resourcePermMap == null) {
-            resourcePermMap = new HashMap<>();
+            resourcePermMap = new HashMap<String, Byte>();
         }
         resourcePermMap.put(resource, perm);
     }

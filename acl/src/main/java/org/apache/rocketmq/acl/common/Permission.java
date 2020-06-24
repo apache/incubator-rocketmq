@@ -59,19 +59,19 @@ public class Permission {
         if (permString == null) {
             return Permission.DENY;
         }
-        switch (permString.trim()) {
-            case "PUB":
-                return Permission.PUB;
-            case "SUB":
-                return Permission.SUB;
-            case "PUB|SUB":
-                return Permission.PUB | Permission.SUB;
-            case "SUB|PUB":
-                return Permission.PUB | Permission.SUB;
-            case "DENY":
-                return Permission.DENY;
-            default:
-                return Permission.DENY;
+        String permTrimString = permString.trim();
+        if (permTrimString.equals("PUB")) {
+            return Permission.PUB;
+        } else if (permTrimString.equals("SUB")) {
+            return Permission.SUB;
+        } else if (permTrimString.equals("PUB|SUB")) {
+            return Permission.PUB | Permission.SUB;
+        } else if (permTrimString.equals("SUB|PUB")) {
+            return Permission.PUB | Permission.SUB;
+        } else if (permTrimString.equals("DENY")) {
+            return Permission.DENY;
+        } else {
+            return Permission.DENY;
         }
     }
 
