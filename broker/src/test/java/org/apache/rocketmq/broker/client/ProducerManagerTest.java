@@ -18,15 +18,15 @@ package org.apache.rocketmq.broker.client;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import java.lang.reflect.Field;
-import java.util.Map;
-
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+
+import java.lang.reflect.Field;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -45,6 +45,13 @@ public class ProducerManagerTest {
     public void init() {
         producerManager = new ProducerManager();
         clientInfo = new ClientChannelInfo(channel, "clientId", LanguageCode.JAVA, 0);
+    }
+
+    @Test
+    public void testFindChannel() {
+        producerManager.registerProducer(group, clientInfo);
+        Channel c = producerManager.findChannel("clientId");
+        assertThat(c).isSameAs(channel);
     }
 
     @Test
@@ -110,20 +117,20 @@ public class ProducerManagerTest {
     }
 
     @Test
-    public void testGetAvaliableChannel() {
+    public void testGetAvailableChannel() {
         producerManager.registerProducer(group, clientInfo);
 
         when(channel.isActive()).thenReturn(true);
         when(channel.isWritable()).thenReturn(true);
-        Channel c = producerManager.getAvaliableChannel(group);
+        Channel c = producerManager.getAvailableChannel(group);
         assertThat(c).isSameAs(channel);
 
         when(channel.isWritable()).thenReturn(false);
-        c = producerManager.getAvaliableChannel(group);
+        c = producerManager.getAvailableChannel(group);
         assertThat(c).isSameAs(channel);
 
         when(channel.isActive()).thenReturn(false);
-        c = producerManager.getAvaliableChannel(group);
+        c = producerManager.getAvailableChannel(group);
         assertThat(c).isNull();
     }
 
