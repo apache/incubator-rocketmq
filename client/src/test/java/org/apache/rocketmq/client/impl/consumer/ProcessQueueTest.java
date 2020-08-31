@@ -17,6 +17,7 @@
 package org.apache.rocketmq.client.impl.consumer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.rocketmq.common.message.MessageExt;
@@ -45,6 +46,22 @@ public class ProcessQueueTest {
 
         pq.removeMessage(Collections.singletonList(pq.getMsgTreeMap().lastEntry().getValue()));
         assertThat(pq.getMsgCount().get()).isEqualTo(89);
+    }
+
+    @Test
+    public void testMakeMessageToConsumeAgain() {
+        ProcessQueue pq = new ProcessQueue();
+
+        MessageExt messageExt1 = new MessageExt();
+        messageExt1.setQueueOffset(1L);
+
+        MessageExt messageExt2 = new MessageExt();
+        messageExt1.setQueueOffset(2L);
+
+        pq.makeMessageToConsumeAgain(Arrays.asList(messageExt1));
+        pq.makeMessageToCosumeAgain(Arrays.asList(messageExt2));
+
+        assertThat(pq.getMsgTreeMap().size()).isEqualTo(2);
     }
 
     @Test

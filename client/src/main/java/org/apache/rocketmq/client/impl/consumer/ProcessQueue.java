@@ -280,7 +280,16 @@ public class ProcessQueue {
         return -1;
     }
 
+    /**
+     * This method will be removed, makeMessageToCosumeAgain->makeMessageToConsumeAgain
+     * @param msgs
+     */
+    @Deprecated
     public void makeMessageToCosumeAgain(List<MessageExt> msgs) {
+        this.makeMessageToConsumeAgain(msgs);
+    }
+
+    public void makeMessageToConsumeAgain(List<MessageExt> msgs) {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
             try {
@@ -292,7 +301,7 @@ public class ProcessQueue {
                 this.lockTreeMap.writeLock().unlock();
             }
         } catch (InterruptedException e) {
-            log.error("makeMessageToCosumeAgain exception", e);
+            log.error("makeMessageToConsumeAgain exception", e);
         }
     }
 
