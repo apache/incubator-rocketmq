@@ -41,6 +41,8 @@ import org.apache.rocketmq.broker.client.DefaultConsumerIdsChangeListener;
 import org.apache.rocketmq.broker.client.ProducerManager;
 import org.apache.rocketmq.broker.client.net.Broker2Client;
 import org.apache.rocketmq.broker.client.rebalance.RebalanceLockManager;
+import org.apache.rocketmq.broker.delaymsg.service.LocalReplayDelayMsgService;
+import org.apache.rocketmq.broker.delaymsg.timewheel.TimeWheelManager;
 import org.apache.rocketmq.broker.dledger.DLedgerRoleChangeHandler;
 import org.apache.rocketmq.broker.filter.CommitLogDispatcherCalcBitMap;
 import org.apache.rocketmq.broker.filter.ConsumerFilterManager;
@@ -103,6 +105,7 @@ import org.apache.rocketmq.store.MessageArrivingListener;
 import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
+import org.apache.rocketmq.store.delaymsg.AbstractReplayDelayMsgService;
 import org.apache.rocketmq.store.dledger.DLedgerCommitLog;
 import org.apache.rocketmq.store.stats.BrokerStats;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
@@ -167,6 +170,7 @@ public class BrokerController {
     private AbstractTransactionalMessageCheckListener transactionalMessageCheckListener;
     private Future<?> slaveSyncFuture;
     private Map<Class,AccessValidator> accessValidatorMap = new HashMap<Class, AccessValidator>();
+    private TimeWheelManager timeWheelManager;
 
     public BrokerController(
         final BrokerConfig brokerConfig,
@@ -482,8 +486,23 @@ public class BrokerController {
             initialTransaction();
             initialAcl();
             initialRpcHooks();
+            initialDelayMsg();
         }
         return result;
+    }
+
+    private void initialDelayMsg() {
+        if (messageStoreConfig.getBrokerRole() != BrokerRole.SLAVE) {
+            // only support MessageStore implementation is DefaultMessageStore currently
+            if (messageStore instanceof DefaultMessageStore) {
+                AbstractReplayDelayMsgService replayDelayMsgService = ServiceProvider.loadClass(ServiceProvider.REPLAYDELAYMSG_SERVICE_ID, AbstractReplayDelayMsgService.class);
+                if (replayDelayMsgService == null) {
+                    replayDelayMsgService = new LocalReplayDelayMsgService(messageStore, ((DefaultMessageStore) messageStore).getDelayMsgCheckPoint());
+                    log.warn("Load default Replay DelayMsg Service: {}", LocalReplayDelayMsgService.class.getSimpleName());
+                }
+                this.timeWheelManager = new TimeWheelManager(replayDelayMsgService, ((DefaultMessageStore) messageStore).getDelayMsgIndexService(), ((DefaultMessageStore) messageStore).getDelayMsgCheckPoint());
+            }
+        }
     }
 
     private void initialTransaction() {
@@ -742,6 +761,10 @@ public class BrokerController {
     }
 
     public void shutdown() {
+        if (this.timeWheelManager != null) {
+            this.timeWheelManager.shutdown();
+        }
+
         if (this.brokerStatsManager != null) {
             this.brokerStatsManager.shutdown();
         }
@@ -907,6 +930,9 @@ public class BrokerController {
             this.brokerFastFailure.start();
         }
 
+        if (this.timeWheelManager != null) {
+            this.timeWheelManager.start();
+        }
 
     }
 

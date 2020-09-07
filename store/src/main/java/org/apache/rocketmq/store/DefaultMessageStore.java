@@ -24,12 +24,14 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +47,7 @@ import org.apache.rocketmq.common.SystemClock;
 import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageExtBatch;
@@ -58,6 +61,7 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 import org.apache.rocketmq.store.dledger.DLedgerCommitLog;
 import org.apache.rocketmq.store.ha.HAService;
+import org.apache.rocketmq.store.index.DelayMsgIndexService;
 import org.apache.rocketmq.store.index.IndexService;
 import org.apache.rocketmq.store.index.QueryOffsetResult;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
@@ -78,7 +82,11 @@ public class DefaultMessageStore implements MessageStore {
 
     private final CleanConsumeQueueService cleanConsumeQueueService;
 
+    private final CleanDelayMsgIndexService cleanDelayMsgIndexService;
+
     private final IndexService indexService;
+
+    private final DelayMsgIndexService delayMsgIndexService;
 
     private final AllocateMappedFileService allocateMappedFileService;
 
@@ -104,6 +112,8 @@ public class DefaultMessageStore implements MessageStore {
     private volatile boolean shutdown = true;
 
     private StoreCheckpoint storeCheckpoint;
+
+    private DelayMsgCheckPoint delayMsgCheckPoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
 
@@ -135,8 +145,10 @@ public class DefaultMessageStore implements MessageStore {
         this.flushConsumeQueueService = new FlushConsumeQueueService();
         this.cleanCommitLogService = new CleanCommitLogService();
         this.cleanConsumeQueueService = new CleanConsumeQueueService();
+        this.cleanDelayMsgIndexService = new CleanDelayMsgIndexService();
         this.storeStatsService = new StoreStatsService();
         this.indexService = new IndexService(this);
+        this.delayMsgIndexService = new DelayMsgIndexService(this);
         if (!messageStoreConfig.isEnableDLegerCommitLog()) {
             this.haService = new HAService(this);
         } else {
@@ -156,9 +168,12 @@ public class DefaultMessageStore implements MessageStore {
 
         this.indexService.start();
 
+        this.delayMsgIndexService.start();
+
         this.dispatcherList = new LinkedList<>();
         this.dispatcherList.addLast(new CommitLogDispatcherBuildConsumeQueue());
         this.dispatcherList.addLast(new CommitLogDispatcherBuildIndex());
+        this.dispatcherList.addLast(new CommitLogDispatcherBuildDelayMsgIndex());
 
         File file = new File(StorePathConfigHelper.getLockFile(messageStoreConfig.getStorePathRootDir()));
         MappedFile.ensureDirOK(file.getParent());
@@ -200,6 +215,11 @@ public class DefaultMessageStore implements MessageStore {
                     new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
 
                 this.indexService.load(lastExitOK);
+
+                this.delayMsgCheckPoint =
+                        new DelayMsgCheckPoint(StorePathConfigHelper.getDelayMsgCheckPoint(this.messageStoreConfig.getStorePathRootDir()));
+
+                this.delayMsgIndexService.load();
 
                 this.recover(lastExitOK);
 
@@ -314,12 +334,15 @@ public class DefaultMessageStore implements MessageStore {
 
             this.storeStatsService.shutdown();
             this.indexService.shutdown();
+            this.delayMsgIndexService.shutdown();
             this.commitLog.shutdown();
             this.reputMessageService.shutdown();
             this.flushConsumeQueueService.shutdown();
             this.allocateMappedFileService.shutdown();
             this.storeCheckpoint.flush();
             this.storeCheckpoint.shutdown();
+            this.delayMsgCheckPoint.flush();
+            this.delayMsgCheckPoint.shutdown();
 
             if (this.runningFlags.isWriteable() && dispatchBehindBytes() == 0) {
                 this.deleteFile(StorePathConfigHelper.getAbortFile(this.messageStoreConfig.getStorePathRootDir()));
@@ -344,8 +367,11 @@ public class DefaultMessageStore implements MessageStore {
         this.destroyLogics();
         this.commitLog.destroy();
         this.indexService.destroy();
+        this.delayMsgIndexService.destroy();
         this.deleteFile(StorePathConfigHelper.getAbortFile(this.messageStoreConfig.getStorePathRootDir()));
         this.deleteFile(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
+        this.deleteFile(StorePathConfigHelper.getDelayMsgCheckPoint(this.messageStoreConfig.getStorePathRootDir()));
+
     }
 
     public void destroyLogics() {
@@ -428,7 +454,7 @@ public class DefaultMessageStore implements MessageStore {
         long beginTime = this.getSystemClock().now();
         CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);
 
-        putResultFuture.thenAccept((result) -> {
+        putResultFuture.thenAccept(result -> {
             long elapsedTime = this.getSystemClock().now() - beginTime;
             if (elapsedTime > 500) {
                 log.warn("putMessage not in lock elapsed time(ms)={}, bodyLength={}", elapsedTime, msg.getBody().length);
@@ -457,7 +483,7 @@ public class DefaultMessageStore implements MessageStore {
         long beginTime = this.getSystemClock().now();
         CompletableFuture<PutMessageResult> resultFuture = this.commitLog.asyncPutMessages(messageExtBatch);
 
-        resultFuture.thenAccept((result) -> {
+        resultFuture.thenAccept(result -> {
             long elapsedTime = this.getSystemClock().now() - beginTime;
             if (elapsedTime > 500) {
                 log.warn("not in lock elapsed time(ms)={}, bodyLength={}", elapsedTime, messageExtBatch.getBody().length);
@@ -1089,7 +1115,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public Map<String, Long> getMessageIds(final String topic, final int queueId, long minOffset, long maxOffset,
-        SocketAddress storeHost) {
+                                           SocketAddress storeHost) {
         Map<String, Long> messageIds = new HashMap<String, Long>();
         if (this.shutdown) {
             return messageIds;
@@ -1343,6 +1369,7 @@ public class DefaultMessageStore implements MessageStore {
     private void cleanFilesPeriodically() {
         this.cleanCommitLogService.run();
         this.cleanConsumeQueueService.run();
+        this.cleanDelayMsgIndexService.run();
     }
 
     private void checkSelf() {
@@ -1481,6 +1508,10 @@ public class DefaultMessageStore implements MessageStore {
         return storeCheckpoint;
     }
 
+    public DelayMsgCheckPoint getDelayMsgCheckPoint() {
+        return delayMsgCheckPoint;
+    }
+
     public HAService getHaService() {
         return haService;
     }
@@ -1493,7 +1524,16 @@ public class DefaultMessageStore implements MessageStore {
         return runningFlags;
     }
 
+    public DelayMsgIndexService getDelayMsgIndexService() {
+        return delayMsgIndexService;
+    }
+
     public void doDispatch(DispatchRequest req) {
+        if (Optional.ofNullable(req.getPropertiesMap()).orElse(new HashMap<>(0)).get(MessageConst.PROPERTY_START_DELIVER_TIME) != null) {
+            CommitLogDispatcher dispatcher = this.dispatcherList.stream().filter(n -> n instanceof CommitLogDispatcherBuildDelayMsgIndex).findFirst().get();
+            dispatcher.dispatch(req);
+            return;
+        }
         for (CommitLogDispatcher dispatcher : this.dispatcherList) {
             dispatcher.dispatch(req);
         }
@@ -1577,6 +1617,14 @@ public class DefaultMessageStore implements MessageStore {
             if (DefaultMessageStore.this.messageStoreConfig.isMessageIndexEnable()) {
                 DefaultMessageStore.this.indexService.buildIndex(request);
             }
+        }
+    }
+
+    class CommitLogDispatcherBuildDelayMsgIndex implements CommitLogDispatcher {
+
+        @Override
+        public void dispatch(DispatchRequest request) {
+            DefaultMessageStore.this.delayMsgIndexService.buildIndex(request);
         }
     }
 
@@ -1760,6 +1808,17 @@ public class DefaultMessageStore implements MessageStore {
                 return false;
             }
         }
+    }
+
+    class CleanDelayMsgIndexService {
+        public void run() {
+            this.deleteExpiredFiles();
+        }
+
+        private void deleteExpiredFiles() {
+            DefaultMessageStore.this.delayMsgIndexService.deleteExpiredFile(DefaultMessageStore.this.delayMsgCheckPoint.getDelayMsgTimestamp());
+        }
+
     }
 
     class CleanConsumeQueueService {

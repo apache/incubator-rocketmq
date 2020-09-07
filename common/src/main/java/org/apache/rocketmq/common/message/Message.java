@@ -149,6 +149,25 @@ public class Message implements Serializable {
         this.putProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL, String.valueOf(level));
     }
 
+    public long getStartDeliverTime() {
+        String pro = this.getProperty(MessageConst.PROPERTY_START_DELIVER_TIME);
+        if (pro != null) {
+            return Long.parseLong(pro);
+        }
+
+        return 0L;
+    }
+
+    /**
+     * <p> set delivery time(absolute time). </p> <ol> <li>Delay Delivery: delay 3s, set like this: System.currentTimeMillis() + 3000;</li>
+     * <li>timed delivery: 2020-09-01 11:30:00, set like this: new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse("2020-09-01
+     * 11:30:00").getTime()</li> </ol>
+     */
+    public void setStartDeliverTime(final long value) {
+        this.putProperty(MessageConst.PROPERTY_START_DELIVER_TIME, String.valueOf(value));
+    }
+
+
     public boolean isWaitStoreMsgOK() {
         String result = this.getProperty(MessageConst.PROPERTY_WAIT_STORE_MSG_OK);
         if (null == result)

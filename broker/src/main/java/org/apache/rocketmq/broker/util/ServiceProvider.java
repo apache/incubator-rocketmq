@@ -40,6 +40,7 @@ public class ServiceProvider {
 
     public static final String ACL_VALIDATOR_ID = "META-INF/service/org.apache.rocketmq.acl.AccessValidator";
 
+    public static final String REPLAYDELAYMSG_SERVICE_ID = "META-INF/service/org.apache.rocketmq.broker.delaymsg.ReplayService";
 
 
     static {
