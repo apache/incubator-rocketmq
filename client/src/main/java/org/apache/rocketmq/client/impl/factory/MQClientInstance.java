@@ -65,6 +65,7 @@ import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.PermName;
 import org.apache.rocketmq.common.filter.ExpressionType;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
+import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
@@ -656,8 +657,7 @@ public class MQClientInstance {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
                                 Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
                                 while (it.hasNext()) {
-                                    Entry<String, MQConsumerInner> entry = it.next();
-                                    MQConsumerInner impl = entry.getValue();
+                                    MQConsumerInner impl = it.next().getValue();
                                     if (impl != null) {
                                         impl.updateTopicSubscribeInfo(topic, subscribeInfo);
                                     }
@@ -673,6 +673,9 @@ public class MQClientInstance {
                 } catch (MQClientException e) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         log.warn("updateTopicRouteInfoFromNameServer Exception", e);
+                    }
+                    if (e.getResponseCode() == ResponseCode.TOPIC_NOT_EXIST && this.topicRouteTable.containsKey(topic)) {
+                        this.topicRouteTable.remove(topic);
                     }
                 } catch (RemotingException e) {
                     log.error("updateTopicRouteInfoFromNameServer Exception", e);

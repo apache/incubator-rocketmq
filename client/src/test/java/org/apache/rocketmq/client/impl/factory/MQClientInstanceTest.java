@@ -19,6 +19,8 @@ package org.apache.rocketmq.client.impl.factory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentMap;
+
 import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.admin.MQAdminExtInner;
 import org.apache.rocketmq.client.exception.MQBrokerException;
@@ -111,5 +113,37 @@ public class MQClientInstanceTest {
         mqClientInstance.unregisterAdminExt(group);
         flag = mqClientInstance.registerAdminExt(group, mock(MQAdminExtInner.class));
         assertThat(flag).isTrue();
+    }
+
+    @Test
+    public void testFindBrokerAddrByTopic() {
+        TopicRouteData topicRouteData = new TopicRouteData();
+
+        topicRouteData.setFilterServerTable(new HashMap<String, List<String>>());
+        List<BrokerData> brokerDataList = new ArrayList<BrokerData>();
+        BrokerData brokerData = new BrokerData();
+        brokerData.setBrokerName("BrokerA");
+        brokerData.setCluster("DefaultCluster");
+        HashMap<Long, String> brokerAddrs = new HashMap<Long, String>();
+        final String brokerAddr0 = "127.0.0.1:10911";
+        brokerAddrs.put(0L, brokerAddr0);
+        brokerData.setBrokerAddrs(brokerAddrs);
+        brokerDataList.add(brokerData);
+        topicRouteData.setBrokerDatas(brokerDataList);
+
+        List<QueueData> queueDataList = new ArrayList<QueueData>();
+        QueueData queueData = new QueueData();
+        queueData.setBrokerName("BrokerA");
+        queueData.setPerm(6);
+        queueData.setReadQueueNums(3);
+        queueData.setWriteQueueNums(4);
+        queueData.setTopicSynFlag(0);
+        queueDataList.add(queueData);
+        topicRouteData.setQueueDatas(queueDataList);
+
+        ConcurrentMap<String, TopicRouteData> topicRouteTable = mqClientInstance.getTopicRouteTable();
+        topicRouteTable.put(topic, topicRouteData);
+        String brokerAddrByTopic = mqClientInstance.findBrokerAddrByTopic(topic);
+        assertThat(brokerAddrByTopic).isEqualTo(brokerAddr0);
     }
 }
