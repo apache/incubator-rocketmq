@@ -337,10 +337,12 @@ public class PlainAccessValidatorTest {
         List<String> topicPerms = new ArrayList<String>();
         topicPerms.add("topicC=PUB|SUB");
         topicPerms.add("topicB=PUB");
+        topicPerms.add("topicD=PUB");
         plainAccessConfig.setTopicPerms(topicPerms);
         List<String> groupPerms = new ArrayList<String>();
         groupPerms.add("groupB=PUB|SUB");
         groupPerms.add("groupC=DENY");
+        groupPerms.add("groupD=DENY");
         plainAccessConfig.setGroupPerms(groupPerms);
 
         PlainAccessValidator plainAccessValidator = new PlainAccessValidator();
@@ -362,8 +364,8 @@ public class PlainAccessValidatorTest {
         Assert.assertEquals(verifyMap.get(AclConstants.CONFIG_DEFAULT_GROUP_PERM),"PUB");
         Assert.assertEquals(verifyMap.get(AclConstants.CONFIG_ADMIN_ROLE),false);
         Assert.assertEquals(verifyMap.get(AclConstants.CONFIG_WHITE_ADDR),"192.168.0.*");
-        Assert.assertEquals(((List)verifyMap.get(AclConstants.CONFIG_TOPIC_PERMS)).size(),2);
-        Assert.assertEquals(((List)verifyMap.get(AclConstants.CONFIG_GROUP_PERMS)).size(),2);
+        Assert.assertEquals(((List)verifyMap.get(AclConstants.CONFIG_TOPIC_PERMS)).size(),4);
+        Assert.assertEquals(((List)verifyMap.get(AclConstants.CONFIG_GROUP_PERMS)).size(),4);
 
         // Verify the dateversion element is correct or not
         List<Map<String, Object>> dataVersions = (List<Map<String, Object>>) readableMap.get("dataVersion");
