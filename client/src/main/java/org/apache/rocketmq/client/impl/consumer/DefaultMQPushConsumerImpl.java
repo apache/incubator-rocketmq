@@ -504,11 +504,21 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
     public void sendMessageBack(MessageExt msg, int delayLevel, final String brokerName)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+        int maxReconsumeTimes = getMaxReconsumeTimes();
         try {
             String brokerAddr = (null != brokerName) ? this.mQClientFactory.findBrokerAddressInPublish(brokerName)
                 : RemotingHelper.parseSocketAddressAddr(msg.getStoreHost());
+            String maxReconsumeTimesInMsg = MessageAccessor.getMaxReconsumeTimes(msg);
+
+            if (maxReconsumeTimesInMsg != null) {
+                try {
+                    maxReconsumeTimes = Integer.parseInt(maxReconsumeTimesInMsg);
+                } catch (NumberFormatException e) {
+                    log.warn("illegal maxReconsumeTimes :" + maxReconsumeTimesInMsg, e);
+                }
+            }
             this.mQClientFactory.getMQClientAPIImpl().consumerSendMessageBack(brokerAddr, msg,
-                this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, getMaxReconsumeTimes());
+                this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, maxReconsumeTimes);
         } catch (Exception e) {
             log.error("sendMessageBack Exception, " + this.defaultMQPushConsumer.getConsumerGroup(), e);
 
