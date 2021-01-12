@@ -281,7 +281,7 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
             RequestFutureTable.getRequestFutureTable().remove(correlationId);
 
             if (requestResponseFuture.getRequestCallback() != null) {
-                requestResponseFuture.getRequestCallback().onSuccess(replyMsg);
+                requestResponseFuture.executeRequestCallback();
             } else {
                 requestResponseFuture.putResponseMessage(replyMsg);
             }

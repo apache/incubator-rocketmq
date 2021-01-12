@@ -48,7 +48,6 @@ import org.apache.rocketmq.common.protocol.route.BrokerData;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.remoting.exception.RemotingException;
-import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
 import org.apache.rocketmq.remoting.netty.NettyRemotingClient;
 import org.junit.After;
 import org.junit.Before;
@@ -56,9 +55,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.failBecauseExceptionWasNotThrown;
@@ -420,7 +417,8 @@ public class DefaultMQProducerTest {
             RequestResponseFuture future = entry.getValue();
             future.setSendRequestOk(true);
             message.setFlag(1);
-            future.getRequestCallback().onSuccess(message);
+            future.putResponseMessage(message);
+            future.executeRequestCallback();
         }
         countDownLatch.await(3000L, TimeUnit.MILLISECONDS);
     }
@@ -454,7 +452,8 @@ public class DefaultMQProducerTest {
             assertThat(responseMap).isNotNull();
             for (Map.Entry<String, RequestResponseFuture> entry : responseMap.entrySet()) {
                 RequestResponseFuture future = entry.getValue();
-                future.getRequestCallback().onException(e);
+                future.setCause(e);
+                future.executeRequestCallback();
             }
         }
         countDownLatch.await(3000L, TimeUnit.MILLISECONDS);

@@ -19,6 +19,7 @@ package org.apache.rocketmq.client.producer;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.rocketmq.common.message.Message;
 
 public class RequestResponseFuture {
@@ -27,6 +28,7 @@ public class RequestResponseFuture {
     private final long beginTimestamp = System.currentTimeMillis();
     private final Message requestMsg = null;
     private long timeoutMillis;
+    private AtomicBoolean executeCallbackOnlyOnce = new AtomicBoolean(false);
     private CountDownLatch countDownLatch = new CountDownLatch(1);
     private volatile Message responseMsg = null;
     private volatile boolean sendRequestOk = true;
@@ -39,7 +41,7 @@ public class RequestResponseFuture {
     }
 
     public void executeRequestCallback() {
-        if (requestCallback != null) {
+        if (requestCallback != null && executeCallbackOnlyOnce.compareAndSet(false, true)) {
             if (sendRequestOk && cause == null) {
                 requestCallback.onSuccess(responseMsg);
             } else {

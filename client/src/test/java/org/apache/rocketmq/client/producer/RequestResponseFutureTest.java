@@ -42,4 +42,19 @@ public class RequestResponseFutureTest {
         assertThat(cc.get()).isEqualTo(1);
     }
 
+    @Test
+    public void testRequestResponseFutureTimeout() throws Exception {
+        final AtomicInteger cc = new AtomicInteger(0);
+        RequestResponseFuture future = new RequestResponseFuture(UUID.randomUUID().toString(), 3 * 1000L, new RequestCallback() {
+            @Override public void onSuccess(Message message) {
+            }
+
+            @Override public void onException(Throwable e) {
+                cc.incrementAndGet();
+            }
+        });
+        RequestFutureTable.getRequestFutureTable().put("123", future);
+        Thread.sleep(4*1000);
+        assertThat(cc.get()).isEqualTo(1);
+    }
 }
