@@ -51,6 +51,9 @@ public class BrokerConfig {
     private boolean brokerTopicEnable = true;
     @ImportantField
     private boolean autoCreateSubscriptionGroup = true;
+
+    private boolean autoDeleteConsumerOffset = false;
+
     private String messageStorePlugIn = "";
     @ImportantField
     private String msgTraceTopicName = TopicValidator.RMQ_SYS_TRACE_TOPIC;
@@ -451,6 +454,14 @@ public class BrokerConfig {
 
     public void setAutoCreateSubscriptionGroup(boolean autoCreateSubscriptionGroup) {
         this.autoCreateSubscriptionGroup = autoCreateSubscriptionGroup;
+    }
+
+    public boolean isAutoDeleteConsumerOffset() {
+        return autoDeleteConsumerOffset;
+    }
+
+    public void setAutoDeleteConsumerOffset(boolean autoDeleteConsumerOffset) {
+        this.autoDeleteConsumerOffset = autoDeleteConsumerOffset;
     }
 
     public boolean isRejectTransactionMessage() {

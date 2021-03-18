@@ -232,4 +232,50 @@ public class ConsumerOffsetManager extends ConfigManager {
         }
     }
 
+    public void deleteOffsetByGroup(final String group) {
+        Iterator<Entry<String, ConcurrentMap<Integer, Long>>> it = this.offsetTable.entrySet().iterator();
+        Set<String> removeKeys = new HashSet<>();
+        while (it.hasNext()) {
+            Entry<String, ConcurrentMap<Integer, Long>> next = it.next();
+            String topicAtGroup = next.getKey();
+            String[] arrays = topicAtGroup.split(TOPIC_GROUP_SEPARATOR);
+            if (arrays.length == 2) {
+                if (group.equals(arrays[1])) {
+                    if (this.offsetTable.remove(topicAtGroup) != null) {
+                        removeKeys.add(topicAtGroup);
+                    }
+                }
+            }
+        }
+        if (removeKeys.size() > 0) {
+            log.info("delete consumer offset OK, topicAtGroup set :{}", removeKeys);
+            this.persist();
+        } else {
+            log.warn("delete consumer offset failed, topicAtGroup not exist. group={}", group);
+        }
+    }
+
+    public void deleteOffsetByTopic(final String topic) {
+        Iterator<Entry<String, ConcurrentMap<Integer, Long>>> it = this.offsetTable.entrySet().iterator();
+        Set<String> removeKeys = new HashSet<>();
+        while (it.hasNext()) {
+            Entry<String, ConcurrentMap<Integer, Long>> next = it.next();
+            String topicAtGroup = next.getKey();
+            String[] arrays = topicAtGroup.split(TOPIC_GROUP_SEPARATOR);
+            if (arrays.length == 2) {
+                if (topic.equals(arrays[0])) {
+                    if (this.offsetTable.remove(topicAtGroup) != null) {
+                        removeKeys.add(topicAtGroup);
+                    }
+                }
+            }
+        }
+        if (removeKeys.size() > 0) {
+            log.info("delete consumer offset OK, topicAtGroup set :{}", removeKeys);
+            this.persist();
+        } else {
+            log.warn("delete consumer offset failed, topicAtGroup not exist. topic={}", topic);
+        }
+    }
+
 }
