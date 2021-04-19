@@ -213,7 +213,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
                             try {
                                 flush();
                             } catch (IOException e) {
-                                log.error("system MQTrace hook shutdown failed ,maybe loss some trace data");
+                                log.error("system MQTrace hook shutdown failed ,maybe loss some trace data", e);
                             }
                         }
                     }
@@ -370,7 +370,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
 
                     @Override
                     public void onException(Throwable e) {
-                        log.info("send trace data ,the traceData is " + data);
+                        log.warn("send trace data failed, the traceData is " + data, e);
                     }
                 };
                 if (traceBrokerSet.isEmpty()) {
@@ -398,7 +398,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
                 }
 
             } catch (Exception e) {
-                log.info("send trace data,the traceData is" + data);
+                log.warn("send trace data failed, the traceData is" + data, e);
             }
         }
 
