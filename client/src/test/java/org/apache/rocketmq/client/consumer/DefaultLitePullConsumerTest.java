@@ -185,10 +185,8 @@ public class DefaultLitePullConsumerTest {
         litePullConsumer.assign(Collections.singletonList(messageQueue));
         long offset = litePullConsumer.committed(messageQueue);
         litePullConsumer.seek(messageQueue, offset);
-        Field field = DefaultLitePullConsumerImpl.class.getDeclaredField("assignedMessageQueue");
-        field.setAccessible(true);
-        AssignedMessageQueue assignedMessageQueue = (AssignedMessageQueue) field.get(litePullConsumerImpl);
-        assertEquals(assignedMessageQueue.getSeekOffset(messageQueue), offset);
+        List<MessageExt> result = litePullConsumer.poll();
+        assertEquals(result.get(0).getQueueOffset(), offset);
         litePullConsumer.shutdown();
     }
 
@@ -200,10 +198,8 @@ public class DefaultLitePullConsumerTest {
         MessageQueue messageQueue = createMessageQueue();
         litePullConsumer.assign(Collections.singletonList(messageQueue));
         litePullConsumer.seekToBegin(messageQueue);
-        Field field = DefaultLitePullConsumerImpl.class.getDeclaredField("assignedMessageQueue");
-        field.setAccessible(true);
-        AssignedMessageQueue assignedMessageQueue = (AssignedMessageQueue) field.get(litePullConsumerImpl);
-        assertEquals(assignedMessageQueue.getSeekOffset(messageQueue), 0L);
+        List<MessageExt> result = litePullConsumer.poll();
+        assertEquals(result.get(0).getQueueOffset(), 0);
         litePullConsumer.shutdown();
     }
 
@@ -215,10 +211,8 @@ public class DefaultLitePullConsumerTest {
         MessageQueue messageQueue = createMessageQueue();
         litePullConsumer.assign(Collections.singletonList(messageQueue));
         litePullConsumer.seekToEnd(messageQueue);
-        Field field = DefaultLitePullConsumerImpl.class.getDeclaredField("assignedMessageQueue");
-        field.setAccessible(true);
-        AssignedMessageQueue assignedMessageQueue = (AssignedMessageQueue) field.get(litePullConsumerImpl);
-        assertEquals(assignedMessageQueue.getSeekOffset(messageQueue), 500L);
+        List<MessageExt> result = litePullConsumer.poll();
+        assertEquals(result.get(0).getQueueOffset(), 500);
         litePullConsumer.shutdown();
     }
 
@@ -584,6 +578,7 @@ public class DefaultLitePullConsumerTest {
                     messageClientExt.setTopic(topic);
                     messageClientExt.setQueueId(0);
                     messageClientExt.setMsgId("123");
+                    messageClientExt.setQueueOffset(requestHeader.getQueueOffset());
                     messageClientExt.setBody(new byte[] {'a'});
                     messageClientExt.setOffsetMsgId("234");
                     messageClientExt.setBornHost(new InetSocketAddress(8080));

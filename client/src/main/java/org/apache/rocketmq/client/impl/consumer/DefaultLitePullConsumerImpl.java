@@ -403,6 +403,17 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    private void updatePullTask(MessageQueue messageQueue) {
+        PullTaskImpl originTask = this.taskTable.get(messageQueue);
+        if (originTask != null) {
+            originTask.setCancelled(true);
+            this.taskTable.remove(messageQueue);
+            PullTaskImpl pullTask = new PullTaskImpl(messageQueue);
+            this.taskTable.put(messageQueue, pullTask);
+            this.scheduledThreadPoolExecutor.schedule(pullTask, 0, TimeUnit.MILLISECONDS);
+        }
+    }
+
     private void updateAssignPullTask(Collection<MessageQueue> mqNewSet) {
         Iterator<Map.Entry<MessageQueue, PullTaskImpl>> it = this.taskTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -553,8 +564,13 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
         }
         final Object objLock = messageQueueLock.fetchLockObject(messageQueue);
         synchronized (objLock) {
-            assignedMessageQueue.setSeekOffset(messageQueue, offset);
-            clearMessageQueueInCache(messageQueue);
+            ProcessQueue processQueue = assignedMessageQueue.getProcessQueue(messageQueue);
+            if (!processQueue.isDropped()) {
+                assignedMessageQueue.setSeekOffset(messageQueue, offset);
+                updateConsumeOffset(messageQueue, offset);
+                clearMessageQueueInCache(messageQueue);
+                updatePullTask(messageQueue);
+            }
         }
     }
 
@@ -753,23 +769,30 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
                     
                     PullResult pullResult = pull(messageQueue, subscriptionData, offset, defaultLitePullConsumer.getPullBatchSize());
 
-                    switch (pullResult.getPullStatus()) {
-                        case FOUND:
-                            final Object objLock = messageQueueLock.fetchLockObject(messageQueue);
-                            synchronized (objLock) {
-                                if (pullResult.getMsgFoundList() != null && !pullResult.getMsgFoundList().isEmpty() && assignedMessageQueue.getSeekOffset(messageQueue) == -1) {
+
+                    final Object objLock = messageQueueLock.fetchLockObject(messageQueue);
+                    synchronized (objLock) {
+                        if (this.cancelled) {
+                            log.warn("The Pull Task was cancelled in doPullTask, {}", messageQueue);
+                            return;
+                        }
+                        switch (pullResult.getPullStatus()) {
+                            case FOUND:
+                                if (pullResult.getMsgFoundList() != null
+                                    && !pullResult.getMsgFoundList().isEmpty()
+                                    && assignedMessageQueue.getSeekOffset(messageQueue) == -1) {
                                     processQueue.putMessage(pullResult.getMsgFoundList());
                                     submitConsumeRequest(new ConsumeRequest(pullResult.getMsgFoundList(), messageQueue, processQueue));
                                 }
-                            }
-                            break;
-                        case OFFSET_ILLEGAL:
-                            log.warn("The pull request offset illegal, {}", pullResult.toString());
-                            break;
-                        default:
-                            break;
+                                break;
+                            case OFFSET_ILLEGAL:
+                                log.warn("The pull request offset illegal, {}", pullResult.toString());
+                                break;
+                            default:
+                                break;
+                        }
+                        updatePullOffset(messageQueue, pullResult.getNextBeginOffset());
                     }
-                    updatePullOffset(messageQueue, pullResult.getNextBeginOffset());
                 } catch (Throwable e) {
                     pullDelayTimeMills = pullTimeDelayMillsWhenException;
                     log.error("An error occurred in pull message process.", e);
