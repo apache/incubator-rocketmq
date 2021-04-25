@@ -19,13 +19,15 @@ package org.apache.rocketmq.common.protocol.body;
 import org.apache.rocketmq.common.DataVersion;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+import java.util.Map;
+
 public class ClusterAclVersionInfo extends RemotingSerializable {
 
     private String brokerName;
 
     private String brokerAddr;
 
-    private DataVersion aclConfigDataVersion;
+    private Map<String, DataVersion> aclConfigDataVersion;
 
     private String clusterName;
 
@@ -54,11 +56,11 @@ public class ClusterAclVersionInfo extends RemotingSerializable {
         this.clusterName = clusterName;
     }
 
-    public DataVersion getAclConfigDataVersion() {
+    public Map<String, DataVersion> getAclConfigDataVersion() {
         return aclConfigDataVersion;
     }
 
-    public void setAclConfigDataVersion(DataVersion aclConfigDataVersion) {
+    public void setAclConfigDataVersion(Map<String, DataVersion> aclConfigDataVersion) {
         this.aclConfigDataVersion = aclConfigDataVersion;
     }
 }

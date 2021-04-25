@@ -3,7 +3,7 @@
 This document focuses on how to quickly deploy and use a RocketMQ cluster that supports the privilege control feature.
 
 ## 1. Access control features
-Access Control (ACL) mainly provides Topic resource level user access control for RocketMQ.If you want to enable RocketMQ permission control, you can inject the AccessKey and SecretKey signatures through the RPCHook on the Client side.And then, the corresponding permission control attributes (including Topic access rights, IP whitelist and AccessKey and SecretKey signature) are set in the configuration file of distribution/conf/plain_acl.yml.The Broker side will check the permissions owned by the AccessKey, and if the verification fails, an exception is thrown;
+Access Control (ACL) mainly provides Topic resource level user access control for RocketMQ.If you want to enable RocketMQ permission control, you can inject the AccessKey and SecretKey signatures through the RPCHook on the Client side.And then, the corresponding permission control attributes (including Topic access rights, IP whitelist and AccessKey and SecretKey signature) are set in the configuration file of distribution/conf/plain_acl/plain_acl_default.yml Multiple acl files supported (files must under distribution/conf/plain_acl) .The Broker side will check the permissions owned by the AccessKey, and if the verification fails, an exception is thrown;
 The source code about ACL on the Client side can be find in **org.apache.rocketmq.example.simple.AclClient.java**  
 
 ## 2. Access control definition and attribute values

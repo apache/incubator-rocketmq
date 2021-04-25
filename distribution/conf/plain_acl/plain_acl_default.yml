@@ -12,12 +12,9 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-## suggested format
-
 globalWhiteRemoteAddresses:
-- 10.10.103.*
-- 192.168.0.*
+- 1.1.1.1
+- 1.1.1.2
 accounts:
 - accessKey: RocketMQ
   secretKey: 12345678
@@ -32,8 +29,6 @@ accounts:
   groupPerms:
   - groupA=DENY
   - groupB=SUB
-  - groupC=SUB
-- accessKey: rocketmq2
-  secretKey: 12345678
-  whiteRemoteAddress: 192.168.1.*
-  admin: true
+dataVersion:
+  - counter: 1
+    timestamp: 1592825106625
