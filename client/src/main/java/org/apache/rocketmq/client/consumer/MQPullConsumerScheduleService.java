@@ -25,10 +25,10 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
+import org.apache.rocketmq.common.utils.ThreadUtils;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 
@@ -81,10 +81,9 @@ public class MQPullConsumerScheduleService {
     }
 
     public void start() throws MQClientException {
-        final String group = this.defaultMQPullConsumer.getConsumerGroup();
-        this.scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(
+        this.scheduledThreadPoolExecutor = (ScheduledThreadPoolExecutor) ThreadUtils.newFixedThreadScheduledPool(
             this.pullThreadNums,
-            new ThreadFactoryImpl("PullMsgThread-" + group)
+            "PullMsgThread-" + this.defaultMQPullConsumer.getConsumerGroup()
         );
 
         this.defaultMQPullConsumer.setMessageQueueListener(this.messageQueueListener);

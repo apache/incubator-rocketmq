@@ -20,6 +20,7 @@ package org.apache.rocketmq.common.utils;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -30,35 +31,62 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 public final class ThreadUtils {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.TOOLS_LOGGER_NAME);
+
+    public static ExecutorService newThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime,
+                                                        TimeUnit unit, BlockingQueue<Runnable> workQueue, String processName) {
+        return newThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, processName, false);
+    }
 
     public static ExecutorService newThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime,
         TimeUnit unit, BlockingQueue<Runnable> workQueue, String processName, boolean isDaemon) {
         return new ThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, newThreadFactory(processName, isDaemon));
     }
 
-    public static ExecutorService newSingleThreadExecutor(String processName, boolean isDaemon) {
+    public static ExecutorService newThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime,
+                                                        TimeUnit unit, BlockingQueue<Runnable> workQueue, String processName, RejectedExecutionHandler handler) {
+        return new ThreadPoolExecutor(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, newThreadFactory(processName, false), handler);
+    }
+
+    public static ExecutorService newSingleThreadExecutor(final String processName) {
+        return newSingleThreadExecutor(processName, false);
+    }
+
+    public static ExecutorService newSingleThreadExecutor(final String processName, final boolean isDaemon) {
         return Executors.newSingleThreadExecutor(newThreadFactory(processName, isDaemon));
     }
 
-    public static ScheduledExecutorService newSingleThreadScheduledExecutor(String processName, boolean isDaemon) {
+    public static ExecutorService newFixedThreadPool(final int nThreads, final String processName) {
+        return Executors.newFixedThreadPool(nThreads, newGenericThreadFactory(processName, nThreads));
+    }
+
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor(final String processName) {
+        return newSingleThreadScheduledExecutor(processName, false);
+    }
+
+    public static ScheduledExecutorService newSingleThreadScheduledExecutor(final String processName, final boolean isDaemon) {
         return Executors.newSingleThreadScheduledExecutor(newThreadFactory(processName, isDaemon));
     }
 
-    public static ScheduledExecutorService newFixedThreadScheduledPool(int nThreads, String processName,
-        boolean isDaemon) {
+    public static ScheduledExecutorService newFixedThreadScheduledPool(final int nThreads, final String processName) {
+        return newFixedThreadScheduledPool(nThreads, processName, false);
+    }
+
+    public static ScheduledExecutorService newFixedThreadScheduledPool(final int nThreads, final String processName,
+                                                                       final boolean isDaemon) {
         return Executors.newScheduledThreadPool(nThreads, newThreadFactory(processName, isDaemon));
     }
 
-    public static ThreadFactory newThreadFactory(String processName, boolean isDaemon) {
+    public static ThreadFactory newThreadFactory(final String processName, final boolean isDaemon) {
         return newGenericThreadFactory("Remoting-" + processName, isDaemon);
     }
 
-    public static ThreadFactory newGenericThreadFactory(String processName) {
+    public static ThreadFactory newGenericThreadFactory(final String processName) {
         return newGenericThreadFactory(processName, false);
     }
 
-    public static ThreadFactory newGenericThreadFactory(String processName, int threads) {
+    public static ThreadFactory newGenericThreadFactory(final String processName, final int threads) {
         return newGenericThreadFactory(processName, threads, false);
     }
 

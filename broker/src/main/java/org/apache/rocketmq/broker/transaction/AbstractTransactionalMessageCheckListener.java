@@ -23,13 +23,12 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
+import org.apache.rocketmq.common.utils.ThreadUtils;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
 import java.util.concurrent.TimeUnit;
 
@@ -42,14 +41,9 @@ public abstract class AbstractTransactionalMessageCheckListener {
     protected final static int TCMT_QUEUE_NUMS = 1;
     protected final Random random = new Random(System.currentTimeMillis());
 
-    private static ExecutorService executorService = new ThreadPoolExecutor(2, 5, 100, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(2000), new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread thread = new Thread(r);
-            thread.setName("Transaction-msg-check-thread");
-            return thread;
-        }
-    }, new CallerRunsPolicy());
+    private static ExecutorService executorService = ThreadUtils.newThreadPoolExecutor(2,
+            5, 100, TimeUnit.SECONDS, new ArrayBlockingQueue<>(2000),
+            "Transaction-msg-check-thread", new CallerRunsPolicy());
 
     public AbstractTransactionalMessageCheckListener() {
     }
