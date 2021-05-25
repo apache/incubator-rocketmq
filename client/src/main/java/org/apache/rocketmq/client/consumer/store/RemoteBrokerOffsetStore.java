@@ -97,6 +97,11 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                     catch (MQBrokerException e) {
                         return -1;
                     }
+                    //remotingException, should retry
+                    catch (RemotingException e) {
+                      log.warn("fetchConsumeOffsetFromBroker RemotingException, " + mq, e);
+                      return -3;
+                    }
                     //Other exceptions
                     catch (Exception e) {
                         log.warn("fetchConsumeOffsetFromBroker exception, " + mq, e);

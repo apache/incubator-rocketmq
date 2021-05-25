@@ -163,7 +163,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                         }
                     }
                 } else {
-                    result = -1;
+                    result = lastOffset;
                 }
                 break;
             }
@@ -174,7 +174,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                 } else if (-1 == lastOffset) {
                     result = 0L;
                 } else {
-                    result = -1;
+                    result = lastOffset;
                 }
                 break;
             }
@@ -199,7 +199,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                         }
                     }
                 } else {
-                    result = -1;
+                    result = lastOffset;
                 }
                 break;
             }
