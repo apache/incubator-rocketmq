@@ -1508,6 +1508,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             RequestFutureTable.getRequestFutureTable().put(correlationId, requestResponseFuture);
 
             long cost = System.currentTimeMillis() - beginTimestamp;
+            Validators.checkMessage(msg, this.defaultMQProducer);
             this.sendKernelImpl(msg, mq, CommunicationMode.ASYNC, new SendCallback() {
                 @Override
                 public void onSuccess(SendResult sendResult) {
@@ -1551,6 +1552,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         RequestFutureTable.getRequestFutureTable().put(correlationId, requestResponseFuture);
 
         long cost = System.currentTimeMillis() - beginTimestamp;
+        Validators.checkMessage(msg, this.defaultMQProducer);
         this.sendKernelImpl(msg, mq, CommunicationMode.ASYNC, new SendCallback() {
             @Override
             public void onSuccess(SendResult sendResult) {
