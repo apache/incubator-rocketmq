@@ -130,7 +130,7 @@ public class AdminBrokerProcessorTest {
         String topic = "";
         RemotingCommand request = buildCreateTopicRequest(topic);
         RemotingCommand response = adminBrokerProcessor.processRequest(handlerContext, request);
-        assertThat(response.getCode()).isEqualTo(ResponseCode.SYSTEM_ERROR);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.MESSAGE_ILLEGAL);
 
         topic = "TEST_CREATE_TOPIC";
         request = buildCreateTopicRequest(topic);

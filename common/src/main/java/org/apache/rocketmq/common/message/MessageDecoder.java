@@ -450,7 +450,7 @@ public class MessageDecoder {
         byte[] propertiesBytes = properties.getBytes(CHARSET_UTF8);
         //note properties length must not more than Short.MAX
         short propertiesLength = (short) propertiesBytes.length;
-        int sysFlag = message.getFlag();
+        int flag = message.getFlag();
         int storeSize = 4 // 1 TOTALSIZE
             + 4 // 2 MAGICCOD
             + 4 // 3 BODYCRC
@@ -468,7 +468,6 @@ public class MessageDecoder {
         byteBuffer.putInt(0);
 
         // 4 FLAG
-        int flag = message.getFlag();
         byteBuffer.putInt(flag);
 
         // 5 BODY
@@ -514,21 +513,58 @@ public class MessageDecoder {
     }
 
     public static byte[] encodeMessages(List<Message> messages) {
-        //TO DO refactor, accumulate in one buffer, avoid copies
-        List<byte[]> encodedMessages = new ArrayList<byte[]>(messages.size());
-        int allSize = 0;
+        int storeSize = 0;
         for (Message message : messages) {
-            byte[] tmp = encodeMessage(message);
-            encodedMessages.add(tmp);
-            allSize += tmp.length;
+            byte[] body = message.getBody();
+            int bodyLen = body.length;
+            String properties = messageProperties2String(message.getProperties());
+            byte[] propertiesBytes = properties.getBytes(CHARSET_UTF8);
+            short propertiesLength = (short) propertiesBytes.length;
+
+            int messageSize = 4 // 1 TOTALSIZE
+                    + 4 // 2 MAGICCOD
+                    + 4 // 3 BODYCRC
+                    + 4 // 4 FLAG
+                    + 4 + bodyLen // 4 BODY
+                    + 2 + propertiesLength;
+            storeSize += messageSize;
         }
-        byte[] allBytes = new byte[allSize];
-        int pos = 0;
-        for (byte[] bytes : encodedMessages) {
-            System.arraycopy(bytes, 0, allBytes, pos, bytes.length);
-            pos += bytes.length;
+        ByteBuffer byteBuffer = ByteBuffer.allocate(storeSize);
+        for (Message message : messages) {
+            //only need flag, body, properties
+            byte[] body = message.getBody();
+            int bodyLen = body.length;
+            String properties = messageProperties2String(message.getProperties());
+            byte[] propertiesBytes = properties.getBytes(CHARSET_UTF8);
+            short propertiesLength = (short) propertiesBytes.length;
+            int flag = message.getFlag();
+            int messageSize = 4 // 1 TOTALSIZE
+                    + 4 // 2 MAGICCOD
+                    + 4 // 3 BODYCRC
+                    + 4 // 4 FLAG
+                    + 4 + bodyLen // 4 BODY
+                    + 2 + propertiesLength;
+            // 1 TOTALSIZE
+            byteBuffer.putInt(messageSize);
+
+            // 2 MAGICCODE
+            byteBuffer.putInt(0);
+
+            // 3 BODYCRC
+            byteBuffer.putInt(0);
+
+            // 4 FLAG
+            byteBuffer.putInt(flag);
+
+            // 5 BODY
+            byteBuffer.putInt(bodyLen);
+            byteBuffer.put(body);
+
+            // 6 properties
+            byteBuffer.putShort(propertiesLength);
+            byteBuffer.put(propertiesBytes);
         }
-        return allBytes;
+        return byteBuffer.array();
     }
 
     public static List<Message> decodeMessages(ByteBuffer byteBuffer) throws Exception {

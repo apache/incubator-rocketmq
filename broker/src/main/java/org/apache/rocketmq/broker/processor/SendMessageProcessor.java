@@ -561,11 +561,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             queueIdInt = randomQueueId(topicConfig.getWriteQueueNums());
         }
 
-        if (requestHeader.getTopic().length() > Byte.MAX_VALUE) {
-            response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-            response.setRemark("message topic length too long " + requestHeader.getTopic().length());
-            return CompletableFuture.completedFuture(response);
-        }
+
 
         MessageExtBatch messageExtBatch = new MessageExtBatch();
         messageExtBatch.setTopic(requestHeader.getTopic());

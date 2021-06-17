@@ -1838,7 +1838,7 @@ public class CommitLog {
                 totalMsgLen += msgLen;
                 // Determines whether there is sufficient free space
                 if (totalMsgLen > maxMessageSize) {
-                    throw new RuntimeException("message size exceeded");
+                    throw new RuntimeException("batch message size exceeded");
                 }
 
                 // 1 TOTALSIZE

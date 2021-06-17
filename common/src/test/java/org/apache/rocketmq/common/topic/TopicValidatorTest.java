@@ -31,19 +31,19 @@ public class TopicValidatorTest {
 
         Boolean res = TopicValidator.validateTopic("", response);
         assertThat(res).isFalse();
-        assertThat(response.getCode()).isEqualTo(ResponseCode.SYSTEM_ERROR);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.MESSAGE_ILLEGAL);
         assertThat(response.getRemark()).contains("The specified topic is blank");
 
         clearResponse(response);
         res = TopicValidator.validateTopic("../TopicTest", response);
         assertThat(res).isFalse();
-        assertThat(response.getCode()).isEqualTo(ResponseCode.SYSTEM_ERROR);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.MESSAGE_ILLEGAL);
         assertThat(response.getRemark()).contains("The specified topic contains illegal characters");
 
         clearResponse(response);
         res = TopicValidator.validateTopic(generateString(128), response);
         assertThat(res).isFalse();
-        assertThat(response.getCode()).isEqualTo(ResponseCode.SYSTEM_ERROR);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.MESSAGE_ILLEGAL);
         assertThat(response.getRemark()).contains("The specified topic is longer than topic max length.");
     }
 
