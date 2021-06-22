@@ -292,11 +292,10 @@ public class ScheduleMessageService extends ConfigManager {
                             }
 
                             long now = System.currentTimeMillis();
-                            long deliverTimestamp = this.correctDeliverTimestamp(now, tagsCode);
 
                             nextOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
 
-                            long countdown = deliverTimestamp - now;
+                            long countdown = tagsCode - now;
 
                             if (countdown <= 0) {
                                 MessageExt msgExt =
