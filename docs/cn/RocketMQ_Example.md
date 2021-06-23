@@ -120,13 +120,15 @@ public class AsyncProducer {
                 producer.send(msg, new SendCallback() {
                     @Override
                     public void onSuccess(SendResult sendResult) {
+                        countDownLatch.countDown();
                         System.out.printf("%-10d OK %s %n", index,
                             sendResult.getMsgId());
                     }
                     @Override
                     public void onException(Throwable e) {
-      	              System.out.printf("%-10d Exception %s %n", index, e);
-      	              e.printStackTrace();
+                        countDownLatch.countDown();
+      	                System.out.printf("%-10d Exception %s %n", index, e);
+      	                e.printStackTrace();
                     }
             	});
     	}
