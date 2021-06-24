@@ -30,6 +30,7 @@ public class MessageStoreConfig {
     private String storePathCommitLog = System.getProperty("user.home") + File.separator + "store"
         + File.separator + "commitlog";
 
+    private static final int WRITE_MAX_BUFFER_SIZE = 1024 * 1024 * 4;
     // CommitLog file size,default is 1G
     private int mappedFileSizeCommitLog = 1024 * 1024 * 1024;
     // ConsumeQueue file size,default is 30W
@@ -503,7 +504,11 @@ public class MessageStoreConfig {
     }
 
     public void setHaTransferBatchSize(int haTransferBatchSize) {
-        this.haTransferBatchSize = haTransferBatchSize;
+        if (haTransferBatchSize > WRITE_MAX_BUFFER_SIZE) {
+            haTransferBatchSize = haTransferBatchSize;
+        } else {
+            this.haTransferBatchSize = haTransferBatchSize;
+        }
     }
 
     public int getHaSlaveFallbehindMax() {
