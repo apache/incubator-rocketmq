@@ -27,6 +27,7 @@ import org.apache.rocketmq.acl.common.AclUtils;
 import org.apache.rocketmq.acl.common.Permission;
 import org.apache.rocketmq.acl.common.SessionCredentials;
 import org.apache.rocketmq.common.AclConfig;
+import org.apache.rocketmq.common.DataVersion;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.PlainAccessConfig;
 import org.apache.rocketmq.common.protocol.RequestCode;
@@ -150,7 +151,7 @@ public class PlainAccessValidator implements AccessValidator {
         return aclPlugEngine.deleteAccessConfig(accesskey);
     }
 
-    @Override public String getAclConfigVersion() {
+    @Override public Map<String, DataVersion> getAclConfigVersion() {
         return aclPlugEngine.getAclConfigDataVersion();
     }
 
@@ -160,5 +161,13 @@ public class PlainAccessValidator implements AccessValidator {
 
     @Override public AclConfig getAllAclConfig() {
         return aclPlugEngine.getAllAclConfig();
+    }
+
+    public Map<String, Object> createAclAccessConfigMap(Map<String, Object> existedAccountMap, PlainAccessConfig plainAccessConfig) {
+        return aclPlugEngine.createAclAccessConfigMap(existedAccountMap, plainAccessConfig);
+    }
+
+    public Map<String, Object> updateAclConfigFileVersion(Map<String, Object> updateAclConfigMap) {
+        return aclPlugEngine.updateAclConfigFileVersion(updateAclConfigMap);
     }
 }
