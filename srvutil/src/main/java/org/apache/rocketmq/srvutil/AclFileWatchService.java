@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.rocketmq.srvutil;
 
 import org.apache.commons.lang3.StringUtils;
@@ -6,17 +23,13 @@ import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class AclFileWatchService extends ServiceThread {
@@ -29,7 +42,7 @@ public class AclFileWatchService extends ServiceThread {
     private static final int WATCH_INTERVAL = 500;
     private MessageDigest md = MessageDigest.getInstance("MD5");
 
-    public AclFileWatchService(String path, final AclFileWatchService.Listener listener) throws Exception{
+    public AclFileWatchService(String path, final AclFileWatchService.Listener listener) throws Exception {
         this.aclPath = path;
         this.fileCurrentHash = new HashMap<>();
         this.listener = listener;
@@ -64,7 +77,9 @@ public class AclFileWatchService extends ServiceThread {
                 int realAclFilesNum = aclFiles.length;
 
                 if (aclFilesNum != realAclFilesNum) {
+                    log.info("aclFilesNum: " + aclFilesNum + "  realAclFilesNum: " + realAclFilesNum);
                     aclFilesNum = realAclFilesNum;
+                    log.info("aclFilesNum: " + aclFilesNum + "  realAclFilesNum: " + realAclFilesNum);
                     listener.onFileNumChanged(aclPath);
                 } else {
                     for (int i = 0; i < aclFilesNum; i++) {
@@ -83,7 +98,7 @@ public class AclFileWatchService extends ServiceThread {
         log.info(this.getServiceName() + " service end");
     }
 
-    private String hash(String filePath) throws IOException, NoSuchAlgorithmException {
+    private String hash(String filePath) throws IOException {
         Path path = Paths.get(filePath);
         md.update(Files.readAllBytes(path));
         byte[] hash = md.digest();

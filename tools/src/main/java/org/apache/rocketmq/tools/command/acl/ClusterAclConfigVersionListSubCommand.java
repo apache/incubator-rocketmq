@@ -16,9 +16,9 @@
  */
 package org.apache.rocketmq.tools.command.acl;
 
-import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Map;
 import java.util.Set;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -114,18 +114,19 @@ public class ClusterAclConfigVersionListSubCommand implements SubCommand {
 
 
         ClusterAclVersionInfo clusterAclVersionInfo = defaultMQAdminExt.examineBrokerClusterAclVersionInfo(addr);
-        DataVersion aclDataVersion = clusterAclVersionInfo.getAclConfigDataVersion();
-        String versionNum = String.valueOf(aclDataVersion.getCounter());
-
+        Map<String, DataVersion> aclDataVersion = clusterAclVersionInfo.getAclConfigDataVersion();
         DateFormat sdf = new SimpleDateFormat(UtilAll.YYYY_MM_DD_HH_MM_SS);
-        String timeStampStr = sdf.format(new Timestamp(aclDataVersion.getTimestamp()));
+        for (Map.Entry<String, DataVersion> entry : aclDataVersion.entrySet()) {
+            System.out.printf("%-16s  %-22s  %-22s  %-20s  %-22s  %-22s%n",
+                    clusterAclVersionInfo.getClusterName(),
+                    clusterAclVersionInfo.getBrokerName(),
+                    clusterAclVersionInfo.getBrokerAddr(),
+                    entry.getKey(),
+                    entry.getValue().getCounter(),
+                    entry.getValue().getTimestamp()
+            );
+        }
 
-        System.out.printf("%-16s  %-22s  %-22s  %-20s  %-22s%n",
-            clusterAclVersionInfo.getClusterName(),
-            clusterAclVersionInfo.getBrokerName(),
-            clusterAclVersionInfo.getBrokerAddr(),
-            versionNum,
-            timeStampStr
-        );
+
     }
 }

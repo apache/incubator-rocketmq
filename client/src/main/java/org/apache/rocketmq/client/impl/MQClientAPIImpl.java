@@ -44,7 +44,6 @@ import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.common.AclConfig;
-import org.apache.rocketmq.common.DataVersion;
 import org.apache.rocketmq.common.MQVersion;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.PlainAccessConfig;
@@ -383,7 +382,7 @@ public class MQClientAPIImpl {
                 clusterAclVersionInfo.setClusterName(responseHeader.getClusterName());
                 clusterAclVersionInfo.setBrokerName(responseHeader.getBrokerName());
                 clusterAclVersionInfo.setBrokerAddr(responseHeader.getBrokerAddr());
-                clusterAclVersionInfo.setAclConfigDataVersion(DataVersion.fromJson(responseHeader.getVersion(), DataVersion.class));
+                clusterAclVersionInfo.setAclConfigDataVersion(responseHeader.getVersion());
                 return clusterAclVersionInfo;
             }
             default:
