@@ -69,7 +69,7 @@ public class MQFaultStrategy {
                 }
 
                 final String notBestBroker = latencyFaultTolerance.pickOneAtLeast();
-                int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker);
+                int writeQueueNums = tpInfo.getWriteQueueNumsByBroker(notBestBroker);
                 if (writeQueueNums > 0) {
                     final MessageQueue mq = tpInfo.selectOneMessageQueue();
                     if (notBestBroker != null) {
