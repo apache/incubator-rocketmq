@@ -90,6 +90,18 @@ public class ProcessQueueTest {
         assertThat(processQueueInfo.getCachedMsgSizeInMiB()).isEqualTo(0);
     }
 
+    @Test
+    public void testGetMaxSpan() {
+        ProcessQueue pq = new ProcessQueue();
+        List<MessageExt> msgs=createMessageList(3001);
+        pq.putMessage(msgs);
+        
+        int ind=10;
+        msgs.remove(ind);
+        pq.removeMessage(msgs);
+        assertThat(pq.getMaxSpan()).isEqualTo(3000-ind);
+    }
+
     private List<MessageExt> createMessageList() {
         return createMessageList(100);
     }
