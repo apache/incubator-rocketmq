@@ -990,14 +990,7 @@ public class BrokerController {
 
         TopicConfigSerializeWrapper topicConfigWrapper = this.getTopicConfigManager().buildTopicConfigSerializeWrapper();
         List<Boolean> changeList = brokerOuterAPI.needRegister(clusterName, brokerAddr, brokerName, brokerId, topicConfigWrapper, timeoutMills);
-        boolean needRegister = false;
-        for (Boolean changed : changeList) {
-            if (changed) {
-                needRegister = true;
-                break;
-            }
-        }
-        return needRegister;
+        return changeList.size() > 0 ? true : false;
     }
 
     public TopicConfigManager getTopicConfigManager() {

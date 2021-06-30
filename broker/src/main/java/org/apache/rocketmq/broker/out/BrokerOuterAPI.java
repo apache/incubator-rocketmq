@@ -288,14 +288,7 @@ public class BrokerOuterAPI {
                                     QueryDataVersionResponseHeader queryDataVersionResponseHeader =
                                         (QueryDataVersionResponseHeader) response.decodeCommandCustomHeader(QueryDataVersionResponseHeader.class);
                                     changed = queryDataVersionResponseHeader.getChanged();
-                                    byte[] body = response.getBody();
-                                    if (body != null) {
-                                        nameServerDataVersion = DataVersion.decode(body, DataVersion.class);
-                                        if (!topicConfigWrapper.getDataVersion().equals(nameServerDataVersion)) {
-                                            changed = true;
-                                        }
-                                    }
-                                    if (changed == null || changed) {
+                                    if (changed) {
                                         changedList.add(Boolean.TRUE);
                                     }
                                 }
