@@ -50,6 +50,7 @@ import org.apache.rocketmq.client.impl.consumer.PullResultExt;
 import org.apache.rocketmq.client.impl.consumer.RebalanceImpl;
 import org.apache.rocketmq.client.impl.consumer.RebalancePushImpl;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
+import org.apache.rocketmq.common.ServiceState;
 import org.apache.rocketmq.common.message.MessageClientExt;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
@@ -284,6 +285,13 @@ public class DefaultMQPushConsumerTest {
 
         pushConsumer.shutdown();
         assertThat(messageConsumedFlag.get()).isTrue();
+    }
+
+    @Test
+    public void testGetServiceState() {
+        DefaultMQPushConsumer pushConsumer = createPushConsumer();
+        ServiceState serviceState = pushConsumer.getServiceState();
+        Assert.assertEquals(ServiceState.CREATE_JUST, serviceState);
     }
 
     private DefaultMQPushConsumer createPushConsumer() {

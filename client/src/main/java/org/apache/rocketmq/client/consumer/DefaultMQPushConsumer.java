@@ -34,6 +34,7 @@ import org.apache.rocketmq.client.trace.AsyncTraceDispatcher;
 import org.apache.rocketmq.client.trace.TraceDispatcher;
 import org.apache.rocketmq.client.trace.hook.ConsumeMessageTraceHookImpl;
 import org.apache.rocketmq.common.MixAll;
+import org.apache.rocketmq.common.ServiceState;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageDecoder;
@@ -620,6 +621,10 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     public void setPullThresholdSizeForTopic(final int pullThresholdSizeForTopic) {
         this.pullThresholdSizeForTopic = pullThresholdSizeForTopic;
+    }
+
+    public ServiceState getServiceState() {
+        return this.defaultMQPushConsumerImpl.getServiceState();
     }
 
     public Map<String, String> getSubscription() {
