@@ -21,7 +21,9 @@ import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.hook.SendMessageContext;
+import org.apache.rocketmq.client.impl.factory.MQClientInstance;
 import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
+import org.apache.rocketmq.client.impl.producer.TopicPublishInfo;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
@@ -29,8 +31,10 @@ import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.common.PlainAccessConfig;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageConst;
+import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
+import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeaderV2;
 import org.apache.rocketmq.common.protocol.header.SendMessageResponseHeader;
 import org.apache.rocketmq.remoting.InvokeCallback;
 import org.apache.rocketmq.remoting.RemotingClient;
@@ -44,6 +48,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
@@ -51,11 +56,14 @@ import org.mockito.stubbing.Answer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.failBecauseExceptionWasNotThrown;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 
 @RunWith(MockitoJUnitRunner.class)
 public class MQClientAPIImplTest {
@@ -64,6 +72,8 @@ public class MQClientAPIImplTest {
     private RemotingClient remotingClient;
     @Mock
     private DefaultMQProducerImpl defaultMQProducerImpl;
+    @Spy
+    private MQClientInstance mQClientInstance = MQClientManager.getInstance().getOrCreateMQClientInstance(new ClientConfig());
 
     private String brokerAddr = "127.0.0.1";
     private String brokerName = "DefaultBroker";
@@ -356,6 +366,48 @@ public class MQClientAPIImplTest {
             }, null, null, 0, sendMessageContext, defaultMQProducerImpl);
     }
 
+    @Test
+    public void testOnExceptionImpl_ResetQueueId() throws InterruptedException, RemotingException, MQBrokerException, NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
+        doReturn(createMessageQueue()).when(defaultMQProducerImpl).selectOneMessageQueue(any(TopicPublishInfo.class), anyString());
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock mock) throws Throwable {
+                return brokerAddr;
+            }
+        }).when(mQClientInstance).findBrokerAddressInPublish(anyString());
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock mock) throws Throwable {
+                InvokeCallback callback = mock.getArgument(3);
+                RemotingCommand request = mock.getArgument(1);
+                ResponseFuture responseFuture = new ResponseFuture(null, request.getOpaque(), 3 * 1000, null, null);
+                callback.operationComplete(responseFuture);
+                return null;
+            }
+        }).doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock mock) throws Throwable {
+                RemotingCommand request = mock.getArgument(1);
+                SendMessageRequestHeaderV2 header = (SendMessageRequestHeaderV2) request.readCustomHeader();
+                assertThat(header.getE()).isEqualTo(2);
+                return null;
+            }
+
+        }).when(remotingClient).invokeAsync(anyString(), any(RemotingCommand.class), anyLong(),
+            any(InvokeCallback.class));
+        doNothing().when(defaultMQProducerImpl).updateFaultItem(anyString(), anyLong(), anyBoolean());
+        mqClientAPI.sendMessage(brokerAddr, brokerName, msg, new SendMessageRequestHeader(), 3 * 1000,
+            CommunicationMode.ASYNC, null, new TopicPublishInfo(), mQClientInstance, 1, new SendMessageContext(), defaultMQProducerImpl);
+        reset(remotingClient);
+        Field field = MQClientAPIImpl.class.getDeclaredField("sendSmartMsg");
+        field.setAccessible(true);
+        field.set(mqClientAPI, false);
+        mqClientAPI.sendMessage(brokerAddr, brokerName, msg, new SendMessageRequestHeader(), 3 * 1000,
+            CommunicationMode.ASYNC, null, new TopicPublishInfo(), mQClientInstance, 1, new SendMessageContext(), defaultMQProducerImpl);
+    }
+
+
+
     private RemotingCommand createResumeSuccessResponse(RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
         response.setCode(ResponseCode.SUCCESS);
@@ -442,4 +494,14 @@ public class MQClientAPIImplTest {
         requestHeader.setMaxReconsumeTimes(10);
         return requestHeader;
     }
+
+    private MessageQueue createMessageQueue() {
+        MessageQueue messageQueue = new MessageQueue();
+        messageQueue.setTopic(topic);
+        messageQueue.setBrokerName(brokerName);
+        messageQueue.setQueueId(2);
+        return messageQueue;
+
+    }
+
 }

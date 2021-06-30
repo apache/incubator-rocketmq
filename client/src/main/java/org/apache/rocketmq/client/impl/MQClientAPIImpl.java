@@ -601,6 +601,16 @@ public class MQClientAPIImpl {
             if (topicPublishInfo != null) { //select one message queue accordingly, in order to determine which broker to send
                 MessageQueue mqChosen = producer.selectOneMessageQueue(topicPublishInfo, brokerName);
                 retryBrokerName = mqChosen.getBrokerName();
+                if (sendSmartMsg || msg instanceof MessageBatch) {
+                    SendMessageRequestHeaderV2 header = (SendMessageRequestHeaderV2) request.readCustomHeader();
+                    header.setE(mqChosen.getQueueId());
+                    request.writeCustomHeader(header);
+                } else {
+                    SendMessageRequestHeader header = (SendMessageRequestHeader) request.readCustomHeader();
+                    header.setQueueId(mqChosen.getQueueId());
+                    request.writeCustomHeader(header);
+                }
+
             }
             String addr = instance.findBrokerAddressInPublish(retryBrokerName);
             log.info("async send msg by retry {} times. topic={}, brokerAddr={}, brokerName={}", tmp, msg.getTopic(), addr,
