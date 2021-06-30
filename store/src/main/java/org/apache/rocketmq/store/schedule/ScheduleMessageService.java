@@ -393,22 +393,24 @@ public class ScheduleMessageService extends ConfigManager {
             long tagsCodeValue =
                 MessageExtBrokerInner.tagsString2tagsCode(topicFilterType, msgInner.getTags());
             msgInner.setTagsCode(tagsCodeValue);
-            msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
 
             msgInner.setSysFlag(msgExt.getSysFlag());
             msgInner.setBornTimestamp(msgExt.getBornTimestamp());
             msgInner.setBornHost(msgExt.getBornHost());
             msgInner.setStoreHost(msgExt.getStoreHost());
             msgInner.setReconsumeTimes(msgExt.getReconsumeTimes());
-
             msgInner.setWaitStoreMsgOK(false);
-            MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_DELAY_TIME_LEVEL);
 
             msgInner.setTopic(msgInner.getProperty(MessageConst.PROPERTY_REAL_TOPIC));
-
             String queueIdStr = msgInner.getProperty(MessageConst.PROPERTY_REAL_QUEUE_ID);
             int queueId = Integer.parseInt(queueIdStr);
             msgInner.setQueueId(queueId);
+
+            MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_DELAY_TIME_LEVEL);
+            MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC);
+            MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID);
+
+            msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
 
             return msgInner;
         }
