@@ -569,10 +569,11 @@ public abstract class NettyRemotingAbstract {
         private final int maxSize = 10000;
 
         public void putNettyEvent(final NettyEvent event) {
-            if (this.eventQueue.size() <= maxSize) {
+            int currentSize = this.eventQueue.size();
+            if (currentSize <= maxSize) {
                 this.eventQueue.add(event);
             } else {
-                log.warn("event queue size[{}] enough, so drop this event {}", this.eventQueue.size(), event.toString());
+                log.warn("event queue size [{}] over the limit [{}], so drop this event {}", currentSize, maxSize, event.toString());
             }
         }
 
