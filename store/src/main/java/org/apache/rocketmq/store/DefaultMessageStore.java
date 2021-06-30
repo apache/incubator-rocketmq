@@ -730,9 +730,27 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public long getMinOffsetInQueue(String topic, int queueId) {
+        return getMinOffsetInQueue(topic, queueId,false);
+    }
+
+    public long getMinOffsetInQueue(String topic, int queueId, boolean realOffset) {
         ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
         if (logic != null) {
-            return logic.getMinOffsetInQueue();
+            long consumeQueueOffset = logic.getMinOffsetInQueue();
+            long commitLogOffset = 0L;
+            if (realOffset) {
+                long minCommitLogOffset = this.commitLog.getMinOffset();
+                long maxOffsetInQueue = getMaxOffsetInQueue(topic,queueId);
+                for (;consumeQueueOffset <= maxOffsetInQueue;consumeQueueOffset++) {
+                    commitLogOffset = getCommitLogOffsetInQueue(topic, queueId, consumeQueueOffset);
+                    if (commitLogOffset >= minCommitLogOffset) {
+                        return consumeQueueOffset;
+                    }
+                }
+                return consumeQueueOffset;
+            } else {
+                return consumeQueueOffset;
+            }
         }
 
         return -1;

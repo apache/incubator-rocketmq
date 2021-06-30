@@ -1173,13 +1173,21 @@ public class MQClientAPIImpl {
     public TopicStatsTable getTopicStatsInfo(final String addr, final String topic,
         final long timeoutMillis) throws InterruptedException,
         RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
+
+        return getTopicStatsInfo(addr, topic, false, timeoutMillis);
+    }
+
+    public TopicStatsTable getTopicStatsInfo(final String addr, final String topic, final boolean realOffset,
+                                             final long timeoutMillis) throws InterruptedException,
+            RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
         GetTopicStatsInfoRequestHeader requestHeader = new GetTopicStatsInfoRequestHeader();
         requestHeader.setTopic(topic);
+        requestHeader.setRealOffset(realOffset);
 
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_TOPIC_STATS_INFO, requestHeader);
 
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            request, timeoutMillis);
+                request, timeoutMillis);
         switch (response.getCode()) {
             case ResponseCode.SUCCESS: {
                 TopicStatsTable topicStatsTable = TopicStatsTable.decode(response.getBody(), TopicStatsTable.class);

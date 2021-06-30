@@ -230,13 +230,21 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
     public TopicStatsTable examineTopicStats(
         String topic) throws RemotingException, MQClientException, InterruptedException,
         MQBrokerException {
+
+        return examineTopicStats(topic,false);
+    }
+
+    @Override
+    public TopicStatsTable examineTopicStats(
+            String topic, boolean realOffset) throws RemotingException, MQClientException, InterruptedException,
+            MQBrokerException {
         TopicRouteData topicRouteData = this.examineTopicRouteInfo(topic);
         TopicStatsTable topicStatsTable = new TopicStatsTable();
 
         for (BrokerData bd : topicRouteData.getBrokerDatas()) {
             String addr = bd.selectBrokerAddr();
             if (addr != null) {
-                TopicStatsTable tst = this.mqClientInstance.getMQClientAPIImpl().getTopicStatsInfo(addr, topic, timeoutMillis);
+                TopicStatsTable tst = this.mqClientInstance.getMQClientAPIImpl().getTopicStatsInfo(addr, topic, realOffset, timeoutMillis);
                 topicStatsTable.getOffsetTable().putAll(tst.getOffsetTable());
             }
         }

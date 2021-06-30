@@ -125,6 +125,16 @@ public interface MessageStore {
     long getMinOffsetInQueue(final String topic, final int queueId);
 
     /**
+     * Get the minimum offset of the topic queue.
+     *
+     * @param topic Topic name.
+     * @param queueId Queue ID.
+     * @param realOffset real offset
+     * @return Minimum offset at present.
+     */
+    long getMinOffsetInQueue(final String topic, final int queueId, final boolean realOffset);
+
+    /**
      * Get the offset of the message in the commit log, which is also known as physical offset.
      *
      * @param topic Topic of the message to lookup.

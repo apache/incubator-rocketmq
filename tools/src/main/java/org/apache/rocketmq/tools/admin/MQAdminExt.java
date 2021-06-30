@@ -98,6 +98,10 @@ public interface MQAdminExt extends MQAdmin {
         final String topic) throws RemotingException, MQClientException, InterruptedException,
         MQBrokerException;
 
+    TopicStatsTable examineTopicStats(
+            final String topic, final boolean realOffset) throws RemotingException, MQClientException, InterruptedException,
+            MQBrokerException;
+
     TopicList fetchAllTopicList() throws RemotingException, MQClientException, InterruptedException;
 
     TopicList fetchTopicsByCLuster(

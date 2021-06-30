@@ -24,6 +24,8 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 public class GetTopicStatsInfoRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String topic;
+    @CFNotNull
+    private Boolean realOffset;
 
     @Override
     public void checkFields() throws RemotingCommandException {
@@ -35,5 +37,13 @@ public class GetTopicStatsInfoRequestHeader implements CommandCustomHeader {
 
     public void setTopic(String topic) {
         this.topic = topic;
+    }
+
+    public Boolean getRealOffset() {
+        return realOffset;
+    }
+
+    public void setRealOffset(Boolean realOffset) {
+        this.realOffset = realOffset;
     }
 }

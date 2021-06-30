@@ -216,7 +216,14 @@ public class DefaultMQAdminExt extends ClientConfig implements MQAdminExt {
     public TopicStatsTable examineTopicStats(
         String topic) throws RemotingException, MQClientException, InterruptedException,
         MQBrokerException {
-        return defaultMQAdminExtImpl.examineTopicStats(topic);
+        return examineTopicStats(topic,false);
+    }
+
+    @Override
+    public TopicStatsTable examineTopicStats(
+            String topic, boolean realOffset) throws RemotingException, MQClientException, InterruptedException,
+            MQBrokerException {
+        return defaultMQAdminExtImpl.examineTopicStats(topic, realOffset);
     }
 
     @Override

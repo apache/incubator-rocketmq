@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.admin.TopicOffset;
 import org.apache.rocketmq.common.admin.TopicStatsTable;
@@ -48,6 +49,10 @@ public class TopicStatusSubCommand implements SubCommand {
         Option opt = new Option("t", "topic", true, "topic name");
         opt.setRequired(true);
         options.addOption(opt);
+
+        opt = new Option("r", "realOffset", false, "real topic offset");
+        opt.setRequired(false);
+        options.addOption(opt);
         return options;
     }
 
@@ -61,7 +66,8 @@ public class TopicStatusSubCommand implements SubCommand {
         try {
             defaultMQAdminExt.start();
             String topic = commandLine.getOptionValue('t').trim();
-            TopicStatsTable topicStatsTable = defaultMQAdminExt.examineTopicStats(topic);
+            boolean realOffset = commandLine.hasOption('r');
+            TopicStatsTable topicStatsTable = defaultMQAdminExt.examineTopicStats(topic,realOffset);
 
             List<MessageQueue> mqList = new LinkedList<MessageQueue>();
             mqList.addAll(topicStatsTable.getOffsetTable().keySet());
@@ -75,8 +81,11 @@ public class TopicStatusSubCommand implements SubCommand {
                 "#Last Updated"
             );
 
+            long total = 0L;
             for (MessageQueue mq : mqList) {
                 TopicOffset topicOffset = topicStatsTable.getOffsetTable().get(mq);
+
+                total += topicOffset.getMaxOffset() - topicOffset.getMinOffset();
 
                 String humanTimestamp = "";
                 if (topicOffset.getLastUpdateTimestamp() > 0) {
@@ -90,6 +99,9 @@ public class TopicStatusSubCommand implements SubCommand {
                     topicOffset.getMaxOffset(),
                     humanTimestamp
                 );
+                if (topic.startsWith(MixAll.DLQ_GROUP_TOPIC_PREFIX)) {
+                    System.out.printf("Total: %d%n", total);
+                }
             }
         } catch (Exception e) {
             throw new SubCommandException(this.getClass().getSimpleName() + " command failed", e);
