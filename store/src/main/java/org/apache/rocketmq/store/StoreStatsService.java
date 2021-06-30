@@ -176,6 +176,7 @@ public class StoreStatsService extends ServiceThread {
         sb.append("\truntime: " + this.getFormatRuntime() + "\r\n");
         sb.append("\tputMessageEntireTimeMax: " + this.putMessageEntireTimeMax + "\r\n");
         sb.append("\tputMessageTimesTotal: " + totalTimes + "\r\n");
+        sb.append("\tgetPutMessageFailedTimes: " + this.getPutMessageFailedTimes() + "\r\n");
         sb.append("\tputMessageSizeTotal: " + this.getPutMessageSizeTotal() + "\r\n");
         sb.append("\tputMessageDistributeTime: " + this.getPutMessageDistributeTimeStringInfo(totalTimes)
             + "\r\n");
@@ -428,6 +429,7 @@ public class StoreStatsService extends ServiceThread {
         result.put("runtime", this.getFormatRuntime());
         result.put("putMessageEntireTimeMax", String.valueOf(this.putMessageEntireTimeMax));
         result.put("putMessageTimesTotal", String.valueOf(totalTimes));
+        result.put("putMessageFailedTimes", String.valueOf(this.putMessageFailedTimes));
         result.put("putMessageSizeTotal", String.valueOf(this.getPutMessageSizeTotal()));
         result.put("putMessageDistributeTime",
             String.valueOf(this.getPutMessageDistributeTimeStringInfo(totalTimes)));
