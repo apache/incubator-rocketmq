@@ -423,6 +423,10 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 if (hasException) {
                     returnType = ConsumeReturnType.EXCEPTION;
                 } else {
+                    log.warn("consumeMessage return null, Group: {} Msgs: {} MQ: {}",
+                        ConsumeMessageConcurrentlyService.this.consumerGroup,
+                        msgs,
+                        messageQueue);
                     returnType = ConsumeReturnType.RETURNNULL;
                 }
             } else if (consumeRT >= defaultMQPushConsumer.getConsumeTimeout() * 60 * 1000) {
@@ -438,10 +442,6 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             }
 
             if (null == status) {
-                log.warn("consumeMessage return null, Group: {} Msgs: {} MQ: {}",
-                    ConsumeMessageConcurrentlyService.this.consumerGroup,
-                    msgs,
-                    messageQueue);
                 status = ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
 
