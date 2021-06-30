@@ -128,6 +128,11 @@ public class Consumer {
         consumer.setConsumeThreadMax(threadCount);
         consumer.setInstanceName(Long.toString(System.currentTimeMillis()));
 
+        if (commandLine.hasOption('n')) {
+            String ns = commandLine.getOptionValue('n');
+            consumer.setNamesrvAddr(ns);
+        }
+
         if (filterType == null || expression == null) {
             consumer.subscribe(topic, "*");
         } else {
