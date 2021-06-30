@@ -26,7 +26,6 @@ import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.consumer.DefaultMQPullConsumerImpl;
 import org.apache.rocketmq.common.MixAll;
-import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
@@ -394,7 +393,6 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
     public MessageExt viewMessage(String topic,
         String uniqKey) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         try {
-            MessageDecoder.decodeMessageId(uniqKey);
             return this.viewMessage(uniqKey);
         } catch (Exception e) {
             // Ignore
