@@ -456,11 +456,12 @@ public class CommitLog {
                         mappedFileOffset += size;
 
                         if (this.defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
-                            if (dispatchRequest.getCommitLogOffset() < this.defaultMessageStore.getConfirmOffset()) {
+                            this.defaultMessageStore.doDispatch(dispatchRequest);
+                        } else {
+                            if (dispatchRequest.getCommitLogOffset() > this.defaultMessageStore.getConfirmOffset()) {
                                 this.defaultMessageStore.doDispatch(dispatchRequest);
                             }
-                        } else {
-                            this.defaultMessageStore.doDispatch(dispatchRequest);
+
                         }
                     }
                     // Come the end of the file, switch to the next file
