@@ -64,7 +64,7 @@ public class MappedFile extends ReferenceResource {
     private MappedByteBuffer mappedByteBuffer;
     private volatile long storeTimestamp = 0;
     private boolean firstCreateInQueue = false;
-
+    private boolean flushError = false;
     public MappedFile() {
     }
 
@@ -282,6 +282,7 @@ public class MappedFile extends ReferenceResource {
                     }
                 } catch (Throwable e) {
                     log.error("Error occurred when force data to disk.", e);
+                    this.flushError = true;
                 }
 
                 this.flushedPosition.set(value);
@@ -575,5 +576,9 @@ public class MappedFile extends ReferenceResource {
     @Override
     public String toString() {
         return this.fileName;
+    }
+
+    public boolean getflushError() {
+        return this.flushError;
     }
 }

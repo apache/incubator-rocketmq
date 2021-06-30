@@ -1392,6 +1392,9 @@ public class CommitLog {
         public void wakeupCustomer(final PutMessageStatus putMessageStatus) {
             this.flushOKFuture.complete(putMessageStatus);
         }
+        public void setPutMessageStatus(final PutMessageStatus putMessageStatus) {
+            this.flushOKFuture.complete(putMessageStatus);
+        }
 
         public CompletableFuture<PutMessageStatus> future() {
             return flushOKFuture;
@@ -1431,7 +1434,12 @@ public class CommitLog {
                             flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                         }
 
-                        req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
+                        if (CommitLog.this.mappedFileQueue.isFlushError()) {
+                            req.setPutMessageStatus(PutMessageStatus.FLUSH_DISK_FAILED);
+                        }
+                        else {
+                            req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
+                        }
                     }
 
                     long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();

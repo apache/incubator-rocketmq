@@ -47,6 +47,7 @@ public class MappedFileQueue {
     private long committedWhere = 0;
 
     private volatile long storeTimestamp = 0;
+    private boolean flushError = false ;
 
     public MappedFileQueue(final String storePath, int mappedFileSize,
         AllocateMappedFileService allocateMappedFileService) {
@@ -428,6 +429,9 @@ public class MappedFileQueue {
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
             int offset = mappedFile.flush(flushLeastPages);
+            if (mappedFile.getflushError()) {
+                this.flushError = true;
+            }
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.flushedWhere;
             this.flushedWhere = where;
@@ -607,4 +611,9 @@ public class MappedFileQueue {
     public void setCommittedWhere(final long committedWhere) {
         this.committedWhere = committedWhere;
     }
+
+    public boolean isFlushError() {
+        return flushError;
+    }
+
 }

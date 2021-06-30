@@ -19,6 +19,7 @@ package org.apache.rocketmq.store;
 public enum PutMessageStatus {
     PUT_OK,
     FLUSH_DISK_TIMEOUT,
+    FLUSH_DISK_FAILED,
     FLUSH_SLAVE_TIMEOUT,
     SLAVE_NOT_AVAILABLE,
     SERVICE_NOT_AVAILABLE,

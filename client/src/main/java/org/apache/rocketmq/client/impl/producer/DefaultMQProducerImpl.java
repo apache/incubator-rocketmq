@@ -632,6 +632,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         switch (e.getResponseCode()) {
                             case ResponseCode.TOPIC_NOT_EXIST:
                             case ResponseCode.SERVICE_NOT_AVAILABLE:
+                            case ResponseCode.FLUSH_DISK_FAILED:
                             case ResponseCode.SYSTEM_ERROR:
                             case ResponseCode.NO_PERMISSION:
                             case ResponseCode.NO_BUYER_ID:
