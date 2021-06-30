@@ -59,7 +59,7 @@ public class CommitLog {
     private final FlushCommitLogService flushCommitLogService;
 
     //If TransientStorePool enabled, we must flush message to FileChannel at fixed periods
-    private final FlushCommitLogService commitLogService;
+    private FlushCommitLogService commitLogService;
 
     private final AppendMessageCallback appendMessageCallback;
     private final ThreadLocal<MessageExtBatchEncoder> batchEncoderThreadLocal;
@@ -81,7 +81,9 @@ public class CommitLog {
             this.flushCommitLogService = new FlushRealTimeService();
         }
 
-        this.commitLogService = new CommitRealTimeService();
+        if (defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
+            this.commitLogService = new CommitRealTimeService();
+        }
 
         this.appendMessageCallback = new DefaultAppendMessageCallback(defaultMessageStore.getMessageStoreConfig().getMaxMessageSize());
         batchEncoderThreadLocal = new ThreadLocal<MessageExtBatchEncoder>() {
