@@ -49,6 +49,14 @@ public class QueryMsgByKeySubCommand implements SubCommand {
         opt.setRequired(true);
         options.addOption(opt);
 
+        opt = new Option("s", "startTimestamp", true, "startTimestamp of key");
+        opt.setRequired(false);
+        options.addOption(opt);
+
+        opt = new Option("e", "endTimestamp", true, "endTimestamp of key");
+        opt.setRequired(false);
+        options.addOption(opt);
+
         return options;
     }
 
@@ -62,7 +70,17 @@ public class QueryMsgByKeySubCommand implements SubCommand {
             final String topic = commandLine.getOptionValue('t').trim();
             final String key = commandLine.getOptionValue('k').trim();
 
-            this.queryByKey(defaultMQAdminExt, topic, key);
+            long startTimestamp = 0;
+            long endTimestamp = Long.MAX_VALUE;
+            if (commandLine.hasOption('s')) {
+                startTimestamp = Long.parseLong(commandLine.getOptionValue('s').trim());
+            }
+            if (commandLine.hasOption('e')) {
+                endTimestamp = Long.parseLong(commandLine.getOptionValue('e').trim());
+            }
+            checkTimestampRange(startTimestamp, endTimestamp);
+
+            this.queryByKey(defaultMQAdminExt, topic, key, startTimestamp, endTimestamp);
         } catch (Exception e) {
             throw new SubCommandException(this.getClass().getSimpleName() + " command failed", e);
         } finally {
@@ -70,11 +88,20 @@ public class QueryMsgByKeySubCommand implements SubCommand {
         }
     }
 
-    private void queryByKey(final DefaultMQAdminExt admin, final String topic, final String key)
+    private void checkTimestampRange(long startTimestamp, long endTimestamp) throws SubCommandException {
+        if (startTimestamp < 0 || endTimestamp < 0) {
+            throw new SubCommandException("startTimestamp or endTimestamp should not be negative");
+        }
+        if (startTimestamp > endTimestamp) {
+            throw new SubCommandException("startTimestamp should not be greater than endTimestamp");
+        }
+    }
+
+    private void queryByKey(final DefaultMQAdminExt admin, final String topic, final String key, long startTimestamp, long endTimestamp)
         throws MQClientException, InterruptedException {
         admin.start();
 
-        QueryResult queryResult = admin.queryMessage(topic, key, 64, 0, Long.MAX_VALUE);
+        QueryResult queryResult = admin.queryMessage(topic, key, 64, startTimestamp, endTimestamp);
         System.out.printf("%-50s %4s %40s%n",
             "#Message ID",
             "#QID",
