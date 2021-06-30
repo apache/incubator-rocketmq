@@ -22,6 +22,8 @@ import java.nio.ByteBuffer;
 import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
+import org.apache.rocketmq.remoting.netty.NettyEncoder;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -122,6 +124,8 @@ public class RemotingCommandTest {
 
         assertThat(decodedCommand.getSerializeTypeCurrentRPC()).isEqualTo(SerializeType.JSON);
         assertThat(decodedCommand.getBody()).isNull();
+        Assert.assertEquals(decodedCommand.getBodyLength(),0);
+        Assert.assertTrue(decodedCommand.getHeadLength()>0);
     }
 
     @Test
@@ -131,7 +135,8 @@ public class RemotingCommandTest {
         int code = 103; //org.apache.rocketmq.common.protocol.RequestCode.REGISTER_BROKER
         CommandCustomHeader header = new SampleCommandCustomHeader();
         RemotingCommand cmd = RemotingCommand.createRequestCommand(code, header);
-        cmd.setBody(new byte[] {0, 1, 2, 3, 4});
+        byte[] body = new byte[] {0, 1, 2, 3, 4};
+        cmd.setBody(body);
 
         ByteBuffer buffer = cmd.encode();
 
@@ -145,6 +150,8 @@ public class RemotingCommandTest {
 
         assertThat(decodedCommand.getSerializeTypeCurrentRPC()).isEqualTo(SerializeType.JSON);
         assertThat(decodedCommand.getBody()).isEqualTo(new byte[] {0, 1, 2, 3, 4});
+        Assert.assertEquals(decodedCommand.getBodyLength(),body.length);
+        Assert.assertTrue(decodedCommand.getHeadLength()>0);
     }
 
     @Test
@@ -181,6 +188,9 @@ public class RemotingCommandTest {
         assertThat(((ExtFieldsHeader) decodedHeader).getLongValue()).isEqualTo(23333333l);
         assertThat(((ExtFieldsHeader) decodedHeader).isBooleanValue()).isEqualTo(true);
         assertThat(((ExtFieldsHeader) decodedHeader).getDoubleValue()).isBetween(0.617, 0.619);
+        Assert.assertEquals(decodedCommand.getBodyLength(), 0);
+        Assert.assertTrue(decodedCommand.getHeadLength()>0);
+
     }
 
     @Test
@@ -197,6 +207,31 @@ public class RemotingCommandTest {
 
         Field value = FieldTestClass.class.getDeclaredField("value");
         assertThat(method.invoke(remotingCommand, value)).isEqualTo(false);
+    }
+
+    @Test
+    public void testNettyEncoder(){
+        int code = 103; //org.apache.rocketmq.common.protocol.RequestCode.REGISTER_BROKER
+        CommandCustomHeader header = new ExtFieldsHeader();
+        RemotingCommand remotingCommand = RemotingCommand.createRequestCommand(code, header);
+        byte[] body = new byte[] {0, 1, 2, 3, 4};
+        remotingCommand.setBody(body);
+        ByteBuffer headerBuffer = remotingCommand.encodeHeader();
+
+        Assert.assertEquals(remotingCommand.getBodyLength(),body.length);
+        Assert.assertTrue(remotingCommand.getHeadLength()>0);
+
+        int totalSize = headerBuffer.getInt();
+
+        ByteBuffer decodeBuffer = ByteBuffer.allocate(totalSize+body.length);
+        decodeBuffer.put(headerBuffer);
+        decodeBuffer.put(body);
+        decodeBuffer.flip();
+
+        RemotingCommand decodeCommand = RemotingCommand.decode(decodeBuffer);
+        Assert.assertEquals(decodeCommand.getHeadLength(), remotingCommand.getHeadLength());
+        Assert.assertEquals(decodeCommand.getBodyLength(),body.length);
+
     }
 }
 
