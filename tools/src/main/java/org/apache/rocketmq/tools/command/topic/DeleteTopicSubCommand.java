@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
@@ -48,8 +49,27 @@ public class DeleteTopicSubCommand implements SubCommand {
             nameServerSet = new HashSet(Arrays.asList(ns));
         }
 
-        adminExt.deleteTopicInNameServer(nameServerSet, topic);
+        adminExt.deleteTopicInNameServer(nameServerSet, topic, null);
         System.out.printf("delete topic [%s] from NameServer success.%n", topic);
+    }
+
+    public static void deleteTopicFromBroker(final DefaultMQAdminExt adminExt,
+        final String brokerAddr,
+        final String topic
+    ) throws Exception {
+
+        adminExt.deleteTopicInBroker(new HashSet<String>(Arrays.asList(brokerAddr)), topic);
+        System.out.printf("delete topic [%s] from broker [%s] success.%n", topic, brokerAddr);
+
+        Set<String> nameServerSet = null;
+        if (adminExt.getNamesrvAddr() != null) {
+            String[] ns = adminExt.getNamesrvAddr().trim().split(";");
+            nameServerSet = new HashSet<String>(Arrays.asList(ns));
+        }
+
+        String brokerName = CommandUtil.fetchBrokerNameByAddr(adminExt, brokerAddr);
+        adminExt.deleteTopicInNameServer(nameServerSet, topic, brokerName);
+        System.out.printf("delete topic [%s] of [%s] from NameServer success.%n", topic, brokerName);
     }
 
     @Override
@@ -64,13 +84,20 @@ public class DeleteTopicSubCommand implements SubCommand {
 
     @Override
     public Options buildCommandlineOptions(Options options) {
+        OptionGroup optionGroup = new OptionGroup();
+
         Option opt = new Option("t", "topic", true, "topic name");
         opt.setRequired(true);
         options.addOption(opt);
 
         opt = new Option("c", "clusterName", true, "delete topic from which cluster");
-        opt.setRequired(true);
-        options.addOption(opt);
+        optionGroup.addOption(opt);
+
+        opt = new Option("b", "brokerAddr", true, "delete topic from which broker, eg: 192.168.0.1:10911");
+        optionGroup.addOption(opt);
+
+        optionGroup.setRequired(true);
+        options.addOptionGroup(optionGroup);
 
         return options;
     }
@@ -81,6 +108,13 @@ public class DeleteTopicSubCommand implements SubCommand {
         adminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
         try {
             String topic = commandLine.getOptionValue('t').trim();
+
+            if (commandLine.hasOption('b')) {
+                String brokerAddr = commandLine.getOptionValue('b').trim();
+                adminExt.start();
+                deleteTopicFromBroker(adminExt, brokerAddr, topic);
+                return;
+            }
 
             if (commandLine.hasOption('c')) {
                 String clusterName = commandLine.getOptionValue('c').trim();

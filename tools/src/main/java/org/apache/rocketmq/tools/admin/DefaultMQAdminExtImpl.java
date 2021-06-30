@@ -409,14 +409,14 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
 
     @Override
     public void deleteTopicInNameServer(Set<String> addrs,
-        String topic) throws RemotingException, MQBrokerException, InterruptedException,
+        String topic, String brokerName) throws RemotingException, MQBrokerException, InterruptedException,
         MQClientException {
         if (addrs == null) {
             String ns = this.mqClientInstance.getMQClientAPIImpl().fetchNameServerAddr();
             addrs = new HashSet(Arrays.asList(ns.split(";")));
         }
         for (String addr : addrs) {
-            this.mqClientInstance.getMQClientAPIImpl().deleteTopicInNameServer(addr, topic, timeoutMillis);
+            this.mqClientInstance.getMQClientAPIImpl().deleteTopicInNameServer(addr, topic, brokerName, timeoutMillis);
         }
     }
 

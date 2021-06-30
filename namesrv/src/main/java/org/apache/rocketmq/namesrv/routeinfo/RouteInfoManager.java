@@ -70,11 +70,25 @@ public class RouteInfoManager {
         return clusterInfoSerializeWrapper.encode();
     }
 
-    public void deleteTopic(final String topic) {
+    public void deleteTopic(final String topic, final String brokerName) {
         try {
             try {
                 this.lock.writeLock().lockInterruptibly();
-                this.topicQueueTable.remove(topic);
+                if (brokerName == null) {
+                    this.topicQueueTable.remove(topic);
+                } else {
+                    List<QueueData> queueDataList = this.topicQueueTable.get(topic);
+                    Iterator<QueueData> iterator = queueDataList.iterator();
+                    while (iterator.hasNext()) {
+                        QueueData queueData = iterator.next();
+                        if (queueData.getBrokerName().equals(brokerName)) {
+                            iterator.remove();
+                        }
+                    }
+                    if (queueDataList.isEmpty()) {
+                        this.topicQueueTable.remove(topic);
+                    }
+                }
             } finally {
                 this.lock.writeLock().unlock();
             }

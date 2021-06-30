@@ -18,11 +18,15 @@ package org.apache.rocketmq.common.protocol.header.namesrv;
 
 import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
+import org.apache.rocketmq.remoting.annotation.CFNullable;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
 public class DeleteTopicInNamesrvRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String topic;
+
+    @CFNullable
+    private String brokerName;
 
     @Override
     public void checkFields() throws RemotingCommandException {
@@ -34,5 +38,13 @@ public class DeleteTopicInNamesrvRequestHeader implements CommandCustomHeader {
 
     public void setTopic(String topic) {
         this.topic = topic;
+    }
+
+    public String getBrokerName() {
+        return brokerName;
+    }
+
+    public void setBrokerName(String brokerName) {
+        this.brokerName = brokerName;
     }
 }

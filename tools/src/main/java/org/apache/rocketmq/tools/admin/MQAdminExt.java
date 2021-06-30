@@ -146,7 +146,7 @@ public interface MQAdminExt extends MQAdmin {
         InterruptedException, MQClientException;
 
     void deleteTopicInNameServer(final Set<String> addrs,
-        final String topic) throws RemotingException, MQBrokerException,
+        final String topic, final String brokerName) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException;
 
     void deleteSubscriptionGroup(final String addr, String groupName) throws RemotingException, MQBrokerException,
