@@ -59,7 +59,7 @@ import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.common.namesrv.TopAddressing;
+import org.apache.rocketmq.common.namesrv.TopAddressingImpl;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
 import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
@@ -175,16 +175,17 @@ public class MQClientAPIImpl {
     }
 
     private final RemotingClient remotingClient;
-    private final TopAddressing topAddressing;
+    private final TopAddressingImpl topAddressing;
     private final ClientRemotingProcessor clientRemotingProcessor;
-    private String nameSrvAddr = null;
+    private volatile String nameSrvAddr = null;
     private ClientConfig clientConfig;
 
     public MQClientAPIImpl(final NettyClientConfig nettyClientConfig,
         final ClientRemotingProcessor clientRemotingProcessor,
         RPCHook rpcHook, final ClientConfig clientConfig) {
         this.clientConfig = clientConfig;
-        topAddressing = new TopAddressing(MixAll.getWSAddr(), clientConfig.getUnitName());
+        this.topAddressing = new TopAddressingImpl(MixAll.getWSAddr(), clientConfig.getUnitName());
+        this.topAddressing.registerChangeCallBack(this::fetchNameServerAddr);
         this.remotingClient = new NettyRemotingClient(nettyClientConfig, null);
         this.clientRemotingProcessor = clientRemotingProcessor;
 
@@ -215,16 +216,21 @@ public class MQClientAPIImpl {
     public String fetchNameServerAddr() {
         try {
             String addrs = this.topAddressing.fetchNSAddr();
-            if (addrs != null) {
-                if (!addrs.equals(this.nameSrvAddr)) {
-                    log.info("name server address changed, old=" + this.nameSrvAddr + ", new=" + addrs);
-                    this.updateNameServerAddressList(addrs);
-                    this.nameSrvAddr = addrs;
-                    return nameSrvAddr;
-                }
-            }
+            return fetchNameServerAddr(addrs);
         } catch (Exception e) {
             log.error("fetchNameServerAddr Exception", e);
+        }
+        return nameSrvAddr;
+    }
+
+    public String fetchNameServerAddr(String addrs){
+        if (addrs != null) {
+            if (!addrs.equals(this.nameSrvAddr)) {
+                log.info("name server address changed, old=" + this.nameSrvAddr + ", new=" + addrs);
+                this.updateNameServerAddressList(addrs);
+                this.nameSrvAddr = addrs;
+                return nameSrvAddr;
+            }
         }
         return nameSrvAddr;
     }
