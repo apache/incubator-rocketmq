@@ -49,6 +49,14 @@ public class QueryMsgByKeySubCommand implements SubCommand {
         opt.setRequired(true);
         options.addOption(opt);
 
+        opt = new Option("s", "startTimeMS", true, "startTime of key");
+        opt.setRequired(false);
+        options.addOption(opt);
+
+        opt = new Option("e", "endTimeMS", true, "endTime of key");
+        opt.setRequired(false);
+        options.addOption(opt);
+
         return options;
     }
 
@@ -62,7 +70,16 @@ public class QueryMsgByKeySubCommand implements SubCommand {
             final String topic = commandLine.getOptionValue('t').trim();
             final String key = commandLine.getOptionValue('k').trim();
 
-            this.queryByKey(defaultMQAdminExt, topic, key);
+            long startTimeMS = 0;
+            long endTimeMS = Long.MAX_VALUE;
+            if(commandLine.hasOption("s")) {
+                startTimeMS = Long.parseLong(commandLine.getOptionValue("s").trim());
+            }
+            if(commandLine.hasOption("e")) {
+                endTimeMS = Long.parseLong(commandLine.getOptionValue("e").trim());
+            }
+
+            this.queryByKey(defaultMQAdminExt, topic, key, startTimeMS, endTimeMS);
         } catch (Exception e) {
             throw new SubCommandException(this.getClass().getSimpleName() + " command failed", e);
         } finally {
@@ -70,11 +87,11 @@ public class QueryMsgByKeySubCommand implements SubCommand {
         }
     }
 
-    private void queryByKey(final DefaultMQAdminExt admin, final String topic, final String key)
+    private void queryByKey(final DefaultMQAdminExt admin, final String topic, final String key, final long startMS, final long endMs)
         throws MQClientException, InterruptedException {
         admin.start();
 
-        QueryResult queryResult = admin.queryMessage(topic, key, 64, 0, Long.MAX_VALUE);
+        QueryResult queryResult = admin.queryMessage(topic, key, 64, startMS, endMs);
         System.out.printf("%-50s %4s %40s%n",
             "#Message ID",
             "#QID",
