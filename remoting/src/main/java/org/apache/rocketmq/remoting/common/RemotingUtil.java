@@ -91,6 +91,11 @@ public class RemotingUtil {
         return isLinuxPlatform;
     }
 
+    /**
+     * This method will be removed, use "org.apache.rocketmq.common.MixAll.getLocalAddress" instead.
+     * @return
+     */
+    @Deprecated
     public static String getLocalAddress() {
         try {
             // Traversal Network interface to get the first non-loopback and non-private address
@@ -140,6 +145,11 @@ public class RemotingUtil {
         return null;
     }
 
+    /**
+     * This method will be removed, use "org.apache.rocketmq.common.MixAll.normalizeHostAddress" instead.
+     * @return
+     */
+    @Deprecated
     public static String normalizeHostAddress(final InetAddress localHost) {
         if (localHost instanceof Inet6Address) {
             return "[" + localHost.getHostAddress() + "]";

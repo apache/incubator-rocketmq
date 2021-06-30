@@ -505,7 +505,7 @@ public class UtilAll {
 
     public static byte[] getIP() {
         try {
-            Enumeration allNetInterfaces = NetworkInterface.getNetworkInterfaces();
+            Enumeration allNetInterfaces = NetworkInterfaceUtil.getNetworkInterfaces();
             InetAddress ip = null;
             byte[] internalIP = null;
             while (allNetInterfaces.hasMoreElements()) {
