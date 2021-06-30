@@ -293,6 +293,9 @@ public abstract class NettyRemotingAbstract {
             responseTable.remove(opaque);
 
             if (responseFuture.getInvokeCallback() != null) {
+                if (ctx != null) {
+                    doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), responseFuture.getRequestCommand(), responseFuture.getResponseCommand());
+                }
                 executeInvokeCallback(responseFuture);
             } else {
                 responseFuture.putResponse(cmd);
@@ -460,7 +463,7 @@ public abstract class NettyRemotingAbstract {
                 throw new RemotingTimeoutException("invokeAsyncImpl call timeout");
             }
 
-            final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis - costTime, invokeCallback, once);
+            final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, request, timeoutMillis - costTime, invokeCallback, once);
             this.responseTable.put(opaque, responseFuture);
             try {
                 channel.writeAndFlush(request).addListener(new ChannelFutureListener() {
