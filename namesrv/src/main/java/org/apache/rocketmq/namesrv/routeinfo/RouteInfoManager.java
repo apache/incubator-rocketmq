@@ -63,11 +63,21 @@ public class RouteInfoManager {
         this.filterServerTable = new HashMap<String, List<String>>(256);
     }
 
-    public byte[] getAllClusterInfo() {
-        ClusterInfo clusterInfoSerializeWrapper = new ClusterInfo();
-        clusterInfoSerializeWrapper.setBrokerAddrTable(this.brokerAddrTable);
-        clusterInfoSerializeWrapper.setClusterAddrTable(this.clusterAddrTable);
-        return clusterInfoSerializeWrapper.encode();
+    public byte[] getAllClusterInfo() throws InterruptedException {
+        try {
+            try {
+                this.lock.writeLock().lockInterruptibly();
+                ClusterInfo clusterInfoSerializeWrapper = new ClusterInfo();
+                clusterInfoSerializeWrapper.setBrokerAddrTable(this.brokerAddrTable);
+                clusterInfoSerializeWrapper.setClusterAddrTable(this.clusterAddrTable);
+                return clusterInfoSerializeWrapper.encode();
+            } finally {
+                this.lock.writeLock().unlock();
+            }
+        } catch (Exception e) {
+            log.error("getAllClusterInfo Exception", e);
+            throw e;
+        }
     }
 
     public void deleteTopic(final String topic) {
