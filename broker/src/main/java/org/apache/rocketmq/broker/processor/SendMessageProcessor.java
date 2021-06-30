@@ -178,7 +178,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
         if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
-            maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
+            Integer times = requestHeader.getMaxReconsumeTimes();
+            if (times != null){
+                maxReconsumeTimes = times;
+            }
         }
 
         if (msgExt.getReconsumeTimes() >= maxReconsumeTimes 
