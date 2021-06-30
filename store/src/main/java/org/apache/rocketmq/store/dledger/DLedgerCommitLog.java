@@ -235,9 +235,6 @@ public class DLedgerCommitLog extends CommitLog {
 
     @Override
     public SelectMappedBufferResult getData(final long offset) {
-        if (offset < dividedCommitlogOffset) {
-            return super.getData(offset);
-        }
         return this.getData(offset, offset == 0);
     }
 
@@ -331,16 +328,13 @@ public class DLedgerCommitLog extends CommitLog {
     @Override
     public DispatchRequest checkMessageAndReturnSize(ByteBuffer byteBuffer, final boolean checkCRC,
         final boolean readBody) {
-        if (isInrecoveringOldCommitlog) {
-            return super.checkMessageAndReturnSize(byteBuffer, checkCRC, readBody);
-        }
         try {
             int bodyOffset = DLedgerEntry.BODY_OFFSET;
             int pos = byteBuffer.position();
             int magic = byteBuffer.getInt();
-            //In dledger, this field is size, it must be gt 0, so it could prevent collision
-            int magicOld = byteBuffer.getInt();
-            if (magicOld == CommitLog.BLANK_MAGIC_CODE || magicOld == CommitLog.MESSAGE_MAGIC_CODE) {
+            //In dledger commitlog, this field is magic, the value of magic has two value: DLedgerMmapFileStore.CURRENT_MAGIC(1) or MmapFileList.BLANK_MAGIC_CODE(-1)
+            //In old commitlog, this field is TOTALSIZE, it must be gt 1, so it could prevent collision
+            if (magic > 1) {
                 byteBuffer.position(pos);
                 return super.checkMessageAndReturnSize(byteBuffer, checkCRC, readBody);
             }
