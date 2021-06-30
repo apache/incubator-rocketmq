@@ -95,6 +95,7 @@ import org.apache.rocketmq.common.protocol.header.DeleteAccessConfigRequestHeade
 import org.apache.rocketmq.common.protocol.header.DeleteSubscriptionGroupRequestHeader;
 import org.apache.rocketmq.common.protocol.header.DeleteTopicRequestHeader;
 import org.apache.rocketmq.common.protocol.header.EndTransactionRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ExamineSubscriptionGroupConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetBrokerAclConfigResponseHeader;
 import org.apache.rocketmq.common.protocol.header.GetBrokerClusterAclConfigResponseBody;
 import org.apache.rocketmq.common.protocol.header.GetConsumeStatsInBrokerHeader;
@@ -2112,6 +2113,28 @@ public class MQClientAPIImpl {
                 break;
         }
         throw new MQBrokerException(response.getCode(), response.getRemark(), brokerAddr);
+    }
+
+    public SubscriptionGroupConfig examineSubscriptionGroupConfig(final String brokerAddr,
+        final String consumerGroup, long timeoutMillis) throws InterruptedException,
+        RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException, MQBrokerException {
+
+        ExamineSubscriptionGroupConfigRequestHeader requestHeader = new ExamineSubscriptionGroupConfigRequestHeader();
+        requestHeader.setConsumerGroup(consumerGroup);
+
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.EXAMINE_SUBSCRIPTIONGROUP_CONFIG, requestHeader);
+        RemotingCommand response = this.remotingClient
+            .invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), brokerAddr), request, timeoutMillis);
+        assert response != null;
+        switch (response.getCode()) {
+            case ResponseCode.SUCCESS: {
+                SubscriptionGroupWrapper groupWrapper = SubscriptionGroupWrapper.decode(response.getBody(), SubscriptionGroupWrapper.class);
+                return groupWrapper.getSubscriptionGroupTable().get(consumerGroup);
+            }
+            default:
+                break;
+        }
+        throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
     public TopicConfigSerializeWrapper getAllTopicConfig(final String addr,

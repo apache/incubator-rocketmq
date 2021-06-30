@@ -18,6 +18,9 @@ package org.apache.rocketmq.broker.processor;
 
 import com.google.common.collect.Sets;
 import io.netty.channel.ChannelHandlerContext;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.util.Set;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.common.BrokerConfig;
 import org.apache.rocketmq.common.MixAll;
@@ -29,13 +32,17 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.CreateTopicRequestHeader;
+import org.apache.rocketmq.common.protocol.header.DeleteSubscriptionGroupRequestHeader;
 import org.apache.rocketmq.common.protocol.header.DeleteTopicRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ExamineSubscriptionGroupConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResumeCheckHalfMessageRequestHeader;
+import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.apache.rocketmq.store.AppendMessageResult;
 import org.apache.rocketmq.store.AppendMessageStatus;
 import org.apache.rocketmq.store.MappedFile;
@@ -51,10 +58,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnitRunner;
-
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -153,6 +156,50 @@ public class AdminBrokerProcessorTest {
         RemotingCommand request = buildDeleteTopicRequest(topic);
         RemotingCommand response = adminBrokerProcessor.processRequest(handlerContext, request);
         assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+    }
+
+    @Test
+    public void testExamineSubscriptionGroup() throws Exception {
+        String consumerGroup = "TEST_EXAMINE_SUBSCRIPTION_GROUP";
+        // create test config
+        RemotingCommand request = buildCreateSubscriptionGroupRequest(consumerGroup);
+        RemotingCommand response = adminBrokerProcessor.processRequest(handlerContext, request);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+
+        // testExamineSubscriptionGroup
+        request = buildExamineSubscriptionGroupRequest(consumerGroup);
+        response = adminBrokerProcessor.processRequest(handlerContext, request);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+
+        // clean test config
+        request = buildDeleteSubscriptionGroupRequest(consumerGroup);
+        response = adminBrokerProcessor.processRequest(handlerContext, request);
+        assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+    }
+
+    private RemotingCommand buildDeleteSubscriptionGroupRequest(String group) {
+        DeleteSubscriptionGroupRequestHeader requestHeader = new DeleteSubscriptionGroupRequestHeader();
+        requestHeader.setGroupName(group);
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.DELETE_SUBSCRIPTIONGROUP, requestHeader);
+        request.makeCustomHeaderToNet();
+        return request;
+    }
+
+    private RemotingCommand buildExamineSubscriptionGroupRequest(String group) {
+        ExamineSubscriptionGroupConfigRequestHeader requestHeader = new ExamineSubscriptionGroupConfigRequestHeader();
+        requestHeader.setConsumerGroup(group);
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.EXAMINE_SUBSCRIPTIONGROUP_CONFIG, requestHeader);
+        request.makeCustomHeaderToNet();
+        return request;
+    }
+
+    private RemotingCommand buildCreateSubscriptionGroupRequest(String group) {
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.UPDATE_AND_CREATE_SUBSCRIPTIONGROUP, null);
+        SubscriptionGroupConfig config = new SubscriptionGroupConfig();
+        config.setGroupName(group);
+        byte[] body = RemotingSerializable.encode(config);
+        request.setBody(body);
+        return request;
     }
 
     private RemotingCommand buildCreateTopicRequest(String topic) {

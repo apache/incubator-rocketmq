@@ -169,6 +169,8 @@ public class DefaultMQAdminExtTest {
         subscriptions.put("Consumer-group-one", subscriptionGroupConfig);
         subscriptionGroupWrapper.setSubscriptionGroupTable(subscriptions);
         when(mQClientAPIImpl.getAllSubscriptionGroup(anyString(), anyLong())).thenReturn(subscriptionGroupWrapper);
+        when(mQClientAPIImpl.examineSubscriptionGroupConfig(anyString(), anyString(), anyLong())).
+            thenReturn(subscriptionGroupWrapper.getSubscriptionGroupTable().get("Consumer-group-one"));
 
         String topicListConfig = "topicListConfig";
         when(mQClientAPIImpl.getKVConfigValue(anyString(), anyString(), anyLong())).thenReturn(topicListConfig);
@@ -405,5 +407,12 @@ public class DefaultMQAdminExtTest {
         assertThat(subscriptionGroupWrapper.getSubscriptionGroupTable().get("Consumer-group-one").getBrokerId()).isEqualTo(1234);
         assertThat(subscriptionGroupWrapper.getSubscriptionGroupTable().get("Consumer-group-one").getGroupName()).isEqualTo("Consumer-group-one");
         assertThat(subscriptionGroupWrapper.getSubscriptionGroupTable().get("Consumer-group-one").isConsumeBroadcastEnable()).isTrue();
+    }
+
+    @Test
+    public void testExamineSubscriptionGroup() throws InterruptedException, MQBrokerException, RemotingTimeoutException,
+        RemotingSendRequestException, RemotingConnectException {
+        SubscriptionGroupConfig subscriptionGroupConfig = defaultMQAdminExt.examineSubscriptionGroupConfig("127.0.0.1:10911", "Consumer-group-one");
+        assertThat(subscriptionGroupConfig).isNotNull();
     }
 }
