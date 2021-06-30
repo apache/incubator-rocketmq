@@ -198,8 +198,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             if (0 == delayLevel) {
                 delayLevel = 3 + msgExt.getReconsumeTimes();
             }
-            msgExt.setDelayTimeLevel(delayLevel);
         }
+        msgExt.setDelayTimeLevel(delayLevel);
 
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
         msgInner.setTopic(newTopic);
