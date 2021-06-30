@@ -66,7 +66,7 @@ public class CleanUnusedTopicCommand implements SubCommand {
                 String cluster = commandLine.getOptionValue('c');
                 if (null != cluster)
                     cluster = cluster.trim();
-                result = defaultMQAdminExt.cleanUnusedTopicByAddr(cluster);
+                result = defaultMQAdminExt.cleanUnusedTopic(cluster);
             }
             System.out.printf(result ? "success" : "false");
         } catch (Exception e) {

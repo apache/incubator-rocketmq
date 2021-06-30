@@ -418,7 +418,7 @@ public class DefaultMQAdminExt extends ClientConfig implements MQAdminExt {
     @Override
     public boolean cleanUnusedTopic(String cluster) throws RemotingConnectException, RemotingSendRequestException,
         RemotingTimeoutException, MQClientException, InterruptedException {
-        return defaultMQAdminExtImpl.cleanUnusedTopicByAddr(cluster);
+        return defaultMQAdminExtImpl.cleanUnusedTopic(cluster);
     }
 
     @Override
