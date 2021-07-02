@@ -245,36 +245,13 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             responseHeader.setMinOffset(getMessageResult.getMinOffset());
             responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
 
-            if (getMessageResult.isSuggestPullingFromSlave()) {
-                responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
-            } else {
-                responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
+            responseHeader.setSuggestWhichBrokerId(getSuggestPullingFromSlave(getMessageResult, subscriptionGroupConfig));
+
+            if (BrokerRole.SLAVE.equals(this.brokerController.getMessageStoreConfig().getBrokerRole())
+                    && !this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
+                response.setCode(ResponseCode.PULL_RETRY_IMMEDIATELY);
             }
 
-            switch (this.brokerController.getMessageStoreConfig().getBrokerRole()) {
-                case ASYNC_MASTER:
-                case SYNC_MASTER:
-                    break;
-                case SLAVE:
-                    if (!this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
-                        response.setCode(ResponseCode.PULL_RETRY_IMMEDIATELY);
-                        responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
-                    }
-                    break;
-            }
-
-            if (this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
-                // consume too slow ,redirect to another machine
-                if (getMessageResult.isSuggestPullingFromSlave()) {
-                    responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
-                }
-                // consume ok
-                else {
-                    responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getBrokerId());
-                }
-            } else {
-                responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
-            }
 
             switch (getMessageResult.getStatus()) {
                 case FOUND:
@@ -587,4 +564,21 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
     public void registerConsumeMessageHook(List<ConsumeMessageHook> consumeMessageHookList) {
         this.consumeMessageHookList = consumeMessageHookList;
     }
+
+    private Long getSuggestPullingFromSlave(final GetMessageResult getMessageResult, SubscriptionGroupConfig subscriptionGroupConfig) {
+
+        if (!this.brokerController.getBrokerConfig().isSlaveReadEnable()) {
+            // Only from master
+            return MixAll.MASTER_ID;
+        }
+
+        if (getMessageResult.isSuggestPullingFromSlave()) {
+            // consume too slow ,redirect to another machine
+            return subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly();
+        } else {
+            // consume ok
+            return subscriptionGroupConfig.getBrokerId();
+        }
+    }
+
 }
