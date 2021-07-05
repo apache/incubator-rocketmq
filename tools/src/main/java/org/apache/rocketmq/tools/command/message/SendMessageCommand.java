@@ -68,14 +68,18 @@ public class SendMessageCommand implements SubCommand {
         opt.setRequired(false);
         options.addOption(opt);
 
+        opt = new Option("m", "msgTraceEnable", true, "Message Trace Enable, Default: false");
+        opt.setRequired(false);
+        options.addOption(opt);
+
         return options;
     }
 
-    private DefaultMQProducer createProducer(RPCHook rpcHook) {
+    private DefaultMQProducer createProducer(RPCHook rpcHook, boolean msgTraceEnable) {
         if (this.producer != null) {
             return producer;
         } else {
-            producer = new DefaultMQProducer(rpcHook);
+            producer = new DefaultMQProducer(null, rpcHook, msgTraceEnable, null);
             producer.setProducerGroup(Long.toString(System.currentTimeMillis()));
             return producer;
         }
@@ -112,8 +116,11 @@ public class SendMessageCommand implements SubCommand {
         } catch (Exception e) {
             throw new RuntimeException(this.getClass().getSimpleName() + " command failed", e);
         }
-
-        DefaultMQProducer producer = this.createProducer(rpcHook);
+        boolean msgTraceEnable = false;
+        if (commandLine.hasOption('m')) {
+            msgTraceEnable = Boolean.parseBoolean(commandLine.getOptionValue('m').trim());
+        }
+        DefaultMQProducer producer = this.createProducer(rpcHook, msgTraceEnable);
         SendResult result;
         try {
             producer.start();

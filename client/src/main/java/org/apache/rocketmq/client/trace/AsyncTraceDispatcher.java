@@ -28,6 +28,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.AccessChannel;
@@ -54,6 +55,7 @@ import static org.apache.rocketmq.client.trace.TraceConstants.TRACE_INSTANCE_NAM
 public class AsyncTraceDispatcher implements TraceDispatcher {
 
     private final static InternalLogger log = ClientLogger.getLog();
+    private final static AtomicInteger COUNTER = new AtomicInteger();
     private final int queueSize;
     private final int batchSize;
     private final int maxMsgSize;
@@ -165,7 +167,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
     }
 
     private String genGroupNameForTrace() {
-        return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type ;
+        return TraceConstants.GROUP_NAME_PREFIX + "-" + this.group + "-" + this.type + "-" + COUNTER.incrementAndGet();
     }
 
     @Override

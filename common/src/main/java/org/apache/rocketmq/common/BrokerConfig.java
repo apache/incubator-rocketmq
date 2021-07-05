@@ -57,10 +57,9 @@ public class BrokerConfig {
     @ImportantField
     private boolean traceTopicEnable = false;
     /**
-     * thread numbers for send message thread pool, since spin lock will be used by default since 4.0.x, the default
-     * value is 1.
+     * thread numbers for send message thread pool.
      */
-    private int sendMessageThreadPoolNums = 1; //16 + Runtime.getRuntime().availableProcessors() * 4;
+    private int sendMessageThreadPoolNums = Math.min(Runtime.getRuntime().availableProcessors(), 4);
     private int pullMessageThreadPoolNums = 16 + Runtime.getRuntime().availableProcessors() * 2;
     private int processReplyMessageThreadPoolNums = 16 + Runtime.getRuntime().availableProcessors() * 2;
     private int queryMessageThreadPoolNums = 8 + Runtime.getRuntime().availableProcessors();
@@ -73,7 +72,8 @@ public class BrokerConfig {
     /**
      * Thread numbers for EndTransactionProcessor
      */
-    private int endTransactionThreadPoolNums = 8 + Runtime.getRuntime().availableProcessors() * 2;
+    private int endTransactionThreadPoolNums = Math.max(8 + Runtime.getRuntime().availableProcessors() * 2,
+            sendMessageThreadPoolNums * 4);
 
     private int flushConsumerOffsetInterval = 1000 * 5;
 

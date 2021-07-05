@@ -54,13 +54,12 @@ public class MessageStoreConfig {
 
     /**
      * introduced since 4.0.x. Determine whether to use mutex reentrantLock when putting message.<br/>
-     * By default it is set to false indicating using spin lock when putting message.
      */
-    private boolean useReentrantLockWhenPutMessage = false;
+    private boolean useReentrantLockWhenPutMessage = true;
 
-    // Whether schedule flush,default is real-time
+    // Whether schedule flush
     @ImportantField
-    private boolean flushCommitLogTimed = false;
+    private boolean flushCommitLogTimed = true;
     // ConsumeQueue flush interval
     private int flushIntervalConsumeQueue = 1000;
     // Resource reclaim interval

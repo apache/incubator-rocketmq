@@ -553,7 +553,7 @@ public class DLedgerCommitLog extends CommitLog {
         msgIdBuilder.setLength(0);
         long elapsedTimeInLock;
         long queueOffset;
-        long msgNum = 0;
+        int msgNum = 0;
         try {
             beginTimeInDledgerLock = this.defaultMessageStore.getSystemClock().now();
             queueOffset = getQueueOffsetByKey(encodeResult.queueOffsetKey, tranType);
@@ -592,6 +592,7 @@ public class DLedgerCommitLog extends CommitLog {
             elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginTimeInDledgerLock;
             appendResult = new AppendMessageResult(AppendMessageStatus.PUT_OK, firstWroteOffset, encodeResult.totalMsgLen,
                     msgIdBuilder.toString(), System.currentTimeMillis(), queueOffset, elapsedTimeInLock);
+            appendResult.setMsgNum(msgNum);
             DLedgerCommitLog.this.topicQueueTable.put(encodeResult.queueOffsetKey, queueOffset + msgNum);
         } catch (Exception e) {
             log.error("Put message error", e);
@@ -779,7 +780,7 @@ public class DLedgerCommitLog extends CommitLog {
         msgIdBuilder.setLength(0);
         long elapsedTimeInLock;
         long queueOffset;
-        long msgNum = 0;
+        int msgNum = 0;
         try {
             beginTimeInDledgerLock = this.defaultMessageStore.getSystemClock().now();
             queueOffset = getQueueOffsetByKey(encodeResult.queueOffsetKey, tranType);
@@ -818,6 +819,7 @@ public class DLedgerCommitLog extends CommitLog {
             elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginTimeInDledgerLock;
             appendResult = new AppendMessageResult(AppendMessageStatus.PUT_OK, firstWroteOffset, encodeResult.totalMsgLen,
                     msgIdBuilder.toString(), System.currentTimeMillis(), queueOffset, elapsedTimeInLock);
+            appendResult.setMsgNum(msgNum);
             DLedgerCommitLog.this.topicQueueTable.put(encodeResult.queueOffsetKey, queueOffset + msgNum);
         } catch (Exception e) {
             log.error("Put message error", e);
