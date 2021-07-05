@@ -155,7 +155,10 @@ public class TopicConfigManager extends ConfigManager {
 
     public TopicConfig createTopicInSendMessageMethod(final String topic, final String defaultTopic,
         final String remoteAddress, final int clientDefaultTopicQueueNums, final int topicSysFlag) {
-        TopicConfig topicConfig = null;
+        TopicConfig topicConfig = this.topicConfigTable.get(topic);
+        if (topicConfig != null)
+            return topicConfig;
+
         boolean createNew = false;
 
         try {
