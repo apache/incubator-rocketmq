@@ -452,11 +452,13 @@ public class HAService {
                     }
 
                     if (diff >= (msgHeaderSize + bodySize)) {
-                        byte[] bodyData = new byte[bodySize];
-                        this.byteBufferRead.position(this.dispatchPosition + msgHeaderSize);
-                        this.byteBufferRead.get(bodyData);
+                        if (bodySize > 0) {
+                            byte[] bodyData = new byte[bodySize];
+                            this.byteBufferRead.position(this.dispatchPosition + msgHeaderSize);
+                            this.byteBufferRead.get(bodyData);
 
-                        HAService.this.defaultMessageStore.appendToCommitLog(masterPhyOffset, bodyData);
+                            HAService.this.defaultMessageStore.appendToCommitLog(masterPhyOffset, bodyData);
+                        }
 
                         this.byteBufferRead.position(readSocketPos);
                         this.dispatchPosition += msgHeaderSize + bodySize;
