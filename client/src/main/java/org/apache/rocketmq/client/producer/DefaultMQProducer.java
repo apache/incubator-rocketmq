@@ -16,6 +16,8 @@
  */
 package org.apache.rocketmq.client.producer;
 
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -27,6 +29,7 @@ import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.exception.RequestTimeoutException;
 import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.log.ClientLogger;
+import org.apache.rocketmq.client.opentracing.hook.SendMessageOpenTracingHookImpl;
 import org.apache.rocketmq.client.trace.AsyncTraceDispatcher;
 import org.apache.rocketmq.client.trace.TraceDispatcher;
 import org.apache.rocketmq.client.trace.hook.EndTransactionTraceHookImpl;
@@ -174,6 +177,20 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
                 log.error("system mqtrace hook init failed ,maybe can't send msg trace data");
             }
         }
+    }
+
+    /**
+     * Constructor specifying producer group,tracer and  parentSpan.
+     *
+     * @param producerGroup Producer group, see the name-sake field.
+     * @param tracer  is a simple, thin interface for Span creation and propagation across arbitrary transports.
+     * @param parentSpan is used to create children Span that record the sending process of messages
+     */
+    public DefaultMQProducer(final String producerGroup,Tracer tracer, Span parentSpan) {
+
+        this.producerGroup = producerGroup;
+        defaultMQProducerImpl = new DefaultMQProducerImpl(this, null);
+        defaultMQProducerImpl.registerSendMessageHook(new SendMessageOpenTracingHookImpl(parentSpan,tracer));
     }
 
     /**

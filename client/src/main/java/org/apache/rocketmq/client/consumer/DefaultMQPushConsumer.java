@@ -16,6 +16,8 @@
  */
 package org.apache.rocketmq.client.consumer;
 
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +32,7 @@ import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
 import org.apache.rocketmq.client.log.ClientLogger;
+import org.apache.rocketmq.client.opentracing.hook.ConsumeMessageOpenTracingHookImpl;
 import org.apache.rocketmq.client.trace.AsyncTraceDispatcher;
 import org.apache.rocketmq.client.trace.TraceDispatcher;
 import org.apache.rocketmq.client.trace.hook.ConsumeMessageTraceHookImpl;
@@ -310,6 +313,23 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     public DefaultMQPushConsumer(final String namespace, final String consumerGroup, RPCHook rpcHook) {
         this(namespace, consumerGroup, rpcHook, new AllocateMessageQueueAveragely());
     }
+
+    /**
+     * Constructor specifying producer group,tracer and  parentSpan.
+     *
+     * @param consumerGroup Consumer group.
+     * @param tracer  is a simple, thin interface for Span creation and propagation across arbitrary transports.
+     * @param parentSpan is used to create children Span that record the message consumption processes.
+     */
+    public DefaultMQPushConsumer(final String consumerGroup,Tracer tracer, Span parentSpan) {
+        this.consumerGroup = consumerGroup;
+        this.allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
+        defaultMQPushConsumerImpl = new DefaultMQPushConsumerImpl(this, null);
+        defaultMQPushConsumerImpl.registerConsumeMessageHook(new ConsumeMessageOpenTracingHookImpl(parentSpan,tracer));
+
+    }
+
+
 
     /**
      * Constructor specifying consumer group, RPC hook and message queue allocating algorithm.

@@ -49,6 +49,11 @@
             <artifactId>logback-classic</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.jaegertracing</groupId>
+            <artifactId>jaeger-client</artifactId>
+            <version>0.32.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.javassist</groupId>
             <artifactId>javassist</artifactId>
         </dependency>
