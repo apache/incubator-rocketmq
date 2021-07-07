@@ -84,6 +84,10 @@ public class MixAll {
     public static final String REPLY_MESSAGE_FLAG = "reply";
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
+    // DUP(Dynamically Updated Parameters):
+    public static final String DUP_NAMESRV_ADDR = "namesrvAddr";
+    public static final String DUP_BROKER_PERMISSION = "brokerPermission";
+
     public static String getWSAddr() {
         String wsDomainName = System.getProperty("rocketmq.namesrv.domain", DEFAULT_NAMESRV_ADDR_LOOKUP);
         String wsDomainSubgroup = System.getProperty("rocketmq.namesrv.domain.subgroup", "nsaddr");

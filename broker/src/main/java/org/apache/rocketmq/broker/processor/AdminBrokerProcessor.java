@@ -507,10 +507,7 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
                 if (properties != null) {
                     log.info("updateBrokerConfig, new config: [{}] client: {} ", properties, ctx.channel().remoteAddress());
                     this.brokerController.getConfiguration().update(properties);
-                    if (properties.containsKey("brokerPermission")) {
-                        this.brokerController.getTopicConfigManager().getDataVersion().nextVersion();
-                        this.brokerController.registerBrokerAll(false, false, true);
-                    }
+                    applyUpdatedConfig(properties);
                 } else {
                     log.error("string2Properties error");
                     response.setCode(ResponseCode.SYSTEM_ERROR);
@@ -528,6 +525,17 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;
+    }
+
+    private void applyUpdatedConfig(Properties properties) {
+        if (properties.containsKey(MixAll.DUP_NAMESRV_ADDR)) {
+            String updatedNamesrvAddr = this.brokerController.getBrokerConfig().getNamesrvAddr();
+            this.brokerController.getBrokerOuterAPI().updateNameServerAddressList(updatedNamesrvAddr);
+        }
+        if (properties.containsKey(MixAll.DUP_BROKER_PERMISSION)) {
+            this.brokerController.getTopicConfigManager().getDataVersion().nextVersion();
+            this.brokerController.registerBrokerAll(false, false, true);
+        }
     }
 
     private RemotingCommand getBrokerConfig(ChannelHandlerContext ctx, RemotingCommand request) {

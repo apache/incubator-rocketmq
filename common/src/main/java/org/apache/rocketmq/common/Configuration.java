@@ -268,9 +268,7 @@ public class Configuration {
             }
         }
 
-        {
-            stringBuilder.append(MixAll.properties2String(this.allConfigs));
-        }
+        stringBuilder.append(MixAll.properties2String(this.allConfigs));
 
         return stringBuilder.toString();
     }
