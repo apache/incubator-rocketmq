@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import org.apache.rocketmq.store.GetMessageResult;
+import org.apache.rocketmq.store.SelectMappedBufferResult;
 
 public class ManyMessageTransfer extends AbstractReferenceCounted implements FileRegion {
     private final ByteBuffer byteBufferHeader;
@@ -36,6 +37,9 @@ public class ManyMessageTransfer extends AbstractReferenceCounted implements Fil
     public ManyMessageTransfer(ByteBuffer byteBufferHeader, GetMessageResult getMessageResult) {
         this.byteBufferHeader = byteBufferHeader;
         this.getMessageResult = getMessageResult;
+        for (SelectMappedBufferResult r: getMessageResult.getMessageMapedList()) {
+            r.setStartOffset(r.getStartOffset() - r.getMappedFile().getFileFromOffset());
+        }
     }
 
     @Override
@@ -64,16 +68,21 @@ public class ManyMessageTransfer extends AbstractReferenceCounted implements Fil
             transferred += target.write(this.byteBufferHeader);
             return transferred;
         } else {
-            List<ByteBuffer> messageBufferList = this.getMessageResult.getMessageBufferList();
-            for (ByteBuffer bb : messageBufferList) {
-                if (bb.hasRemaining()) {
-                    transferred += target.write(bb);
-                    return transferred;
+            List<SelectMappedBufferResult> messageMapedList = this.getMessageResult.getMessageMapedList();
+            for (SelectMappedBufferResult r: messageMapedList) {
+                if (r.getSize() <= 0) {
+                    continue;
+                }
+                long written = r.getMappedFile().getFileChannel().transferTo(r.getStartOffset(), r.getSize(), target);
+                if (written > 0) {
+                    r.setStartOffset(r.getStartOffset() + written);
+                    r.setSize(r.getSize() - (int)written);
+                    transferred += written;
                 }
             }
-        }
 
-        return 0;
+            return transferred;
+        }
     }
 
     public void close() {

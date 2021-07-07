@@ -20,11 +20,13 @@ import java.nio.ByteBuffer;
 
 public class SelectMappedBufferResult {
 
-    private final long startOffset;
+    private long startOffset;
 
     private final ByteBuffer byteBuffer;
 
     private int size;
+
+    private final int totalSize;
 
     private MappedFile mappedFile;
 
@@ -32,6 +34,7 @@ public class SelectMappedBufferResult {
         this.startOffset = startOffset;
         this.byteBuffer = byteBuffer;
         this.size = size;
+        this.totalSize = size;
         this.mappedFile = mappedFile;
     }
 
@@ -45,10 +48,13 @@ public class SelectMappedBufferResult {
 
     public void setSize(final int s) {
         this.size = s;
-        this.byteBuffer.limit(this.size);
     }
 
-//    @Override
+    public int getTotalSize() {
+        return totalSize;
+    }
+
+    //    @Override
 //    protected void finalize() {
 //        if (this.mappedFile != null) {
 //            this.release();
@@ -62,7 +68,15 @@ public class SelectMappedBufferResult {
         }
     }
 
+    public void setStartOffset(long startOffset) {
+        this.startOffset = startOffset;
+    }
+
     public long getStartOffset() {
         return startOffset;
+    }
+
+    public MappedFile getMappedFile() {
+        return mappedFile;
     }
 }

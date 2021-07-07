@@ -66,4 +66,8 @@ public class QueryMessageResult {
     public int getBufferTotalSize() {
         return bufferTotalSize;
     }
+
+    public List<SelectMappedBufferResult> getMessageMapedList() {
+        return messageMapedList;
+    }
 }

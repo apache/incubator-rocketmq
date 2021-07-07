@@ -35,6 +35,9 @@ public class OneMessageTransfer extends AbstractReferenceCounted implements File
     public OneMessageTransfer(ByteBuffer byteBufferHeader, SelectMappedBufferResult selectMappedBufferResult) {
         this.byteBufferHeader = byteBufferHeader;
         this.selectMappedBufferResult = selectMappedBufferResult;
+        this.selectMappedBufferResult.setStartOffset(
+                this.selectMappedBufferResult.getStartOffset() - this.selectMappedBufferResult.getMappedFile().getFileFromOffset()
+        );
     }
 
     @Override
@@ -49,7 +52,7 @@ public class OneMessageTransfer extends AbstractReferenceCounted implements File
 
     @Override
     public long count() {
-        return this.byteBufferHeader.limit() + this.selectMappedBufferResult.getSize();
+        return this.byteBufferHeader.limit() + this.selectMappedBufferResult.getTotalSize();
     }
 
     @Override
@@ -57,12 +60,16 @@ public class OneMessageTransfer extends AbstractReferenceCounted implements File
         if (this.byteBufferHeader.hasRemaining()) {
             transferred += target.write(this.byteBufferHeader);
             return transferred;
-        } else if (this.selectMappedBufferResult.getByteBuffer().hasRemaining()) {
-            transferred += target.write(this.selectMappedBufferResult.getByteBuffer());
-            return transferred;
+        } else if (this.selectMappedBufferResult.getSize() > 0) {
+            SelectMappedBufferResult r = this.selectMappedBufferResult;
+            long written = r.getMappedFile().getFileChannel().transferTo(r.getStartOffset(), r.getSize(), target);
+            if (written > 0) {
+                r.setStartOffset(r.getStartOffset() + written);
+                r.setSize(r.getSize() - (int)written);
+                transferred += written;
+            }
         }
-
-        return 0;
+        return transferred;
     }
 
     public void close() {
