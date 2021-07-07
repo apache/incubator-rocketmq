@@ -23,4 +23,6 @@ public interface PutMessageLock {
     void lock();
 
     void unlock();
+
+    long getBeginTimeInLock();
 }

@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PutMessageSpinLock implements PutMessageLock {
     //true: Can lock, false : in lock.
     private AtomicBoolean putMessageSpinLock = new AtomicBoolean(true);
+    private volatile long beginTimeInLock;
 
     @Override
     public void lock() {
@@ -32,10 +33,18 @@ public class PutMessageSpinLock implements PutMessageLock {
             flag = this.putMessageSpinLock.compareAndSet(true, false);
         }
         while (!flag);
+
+        this.beginTimeInLock = System.currentTimeMillis();
     }
 
     @Override
     public void unlock() {
         this.putMessageSpinLock.compareAndSet(false, true);
+        this.beginTimeInLock = 0;
+    }
+
+    @Override
+    public long getBeginTimeInLock() {
+        return beginTimeInLock;
     }
 }

@@ -23,14 +23,22 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class PutMessageReentrantLock implements PutMessageLock {
     private ReentrantLock putMessageNormalLock = new ReentrantLock(); // NonfairSync
+    private volatile long beginTimeInLock;
 
     @Override
     public void lock() {
         putMessageNormalLock.lock();
+        beginTimeInLock = System.currentTimeMillis();
     }
 
     @Override
     public void unlock() {
         putMessageNormalLock.unlock();
+        beginTimeInLock = 0;
+    }
+
+    @Override
+    public long getBeginTimeInLock() {
+        return beginTimeInLock;
     }
 }
