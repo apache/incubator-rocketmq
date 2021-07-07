@@ -932,19 +932,17 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
     public Set<String> getTopicClusterList(
         final String topic) throws InterruptedException, MQBrokerException, MQClientException,
         RemotingException {
-        Set<String> clusterSet = new HashSet<String>();
-        ClusterInfo clusterInfo = examineBrokerClusterInfo();
-        TopicRouteData topicRouteData = examineTopicRouteInfo(topic);
-        BrokerData brokerData = topicRouteData.getBrokerDatas().get(0);
+      Set<String> clusterSet = new HashSet<String>();
+      ClusterInfo clusterInfo = examineBrokerClusterInfo();
+      TopicRouteData topicRouteData = examineTopicRouteInfo(topic);
+      for (BrokerData brokerData : topicRouteData.getBrokerDatas()) {
         String brokerName = brokerData.getBrokerName();
-        Iterator<Map.Entry<String, Set<String>>> it = clusterInfo.getClusterAddrTable().entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, Set<String>> next = it.next();
-            if (next.getValue().contains(brokerName)) {
-                clusterSet.add(next.getKey());
-            }
+        Set<String> brokers = clusterInfo.getClusterAddrTable().get(brokerData.getCluster());
+        if (brokers.contains(brokerName)) {
+          clusterSet.add(brokerData.getCluster());
         }
-        return clusterSet;
+      }
+      return clusterSet;
     }
 
     @Override
