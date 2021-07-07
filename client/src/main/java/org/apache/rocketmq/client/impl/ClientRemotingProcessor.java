@@ -46,7 +46,7 @@ import org.apache.rocketmq.common.protocol.header.GetConsumerRunningInfoRequestH
 import org.apache.rocketmq.common.protocol.header.GetConsumerStatusRequestHeader;
 import org.apache.rocketmq.common.protocol.header.NotifyConsumerIdsChangedRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ReplyMessageRequestHeader;
-import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ResetOffsetByTimeRequestHeader;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
@@ -147,16 +147,16 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
 
     public RemotingCommand resetOffset(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
-        final ResetOffsetRequestHeader requestHeader =
-            (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
-        log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
-            RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
-            requestHeader.getTimestamp());
+        final ResetOffsetByTimeRequestHeader requestHeader =
+            (ResetOffsetByTimeRequestHeader) request.decodeCommandCustomHeader(ResetOffsetByTimeRequestHeader.class);
         Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
         if (request.getBody() != null) {
             ResetOffsetBody body = ResetOffsetBody.decode(request.getBody(), ResetOffsetBody.class);
             offsetTable = body.getOffsetTable();
         }
+        log.info("invoke reset offset operation from broker. brokerAddr={}, group={}, offsetTable={}",
+                RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getGroup(), offsetTable);
+
         this.mqClientFactory.resetOffset(requestHeader.getTopic(), requestHeader.getGroup(), offsetTable);
         return null;
     }

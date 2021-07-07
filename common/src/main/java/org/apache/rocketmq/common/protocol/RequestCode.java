@@ -123,13 +123,14 @@ public class RequestCode {
 
     public static final int GET_CONSUMER_STATUS_FROM_CLIENT = 221;
 
-    public static final int INVOKE_BROKER_TO_RESET_OFFSET = 222;
+    public static final int INVOKE_BROKER_TO_RESET_OFFSET_BY_TIME = 222;
 
     public static final int INVOKE_BROKER_TO_GET_CONSUMER_STATUS = 223;
+    public static final int GET_TOPICS_BY_CLUSTER = 224;
+    public static final int INVOKE_BROKER_TO_RESET_OFFSET_BY_OFFSET = 225;
 
     public static final int QUERY_TOPIC_CONSUME_BY_WHO = 300;
 
-    public static final int GET_TOPICS_BY_CLUSTER = 224;
 
     public static final int REGISTER_FILTER_SERVER = 301;
     public static final int REGISTER_MESSAGE_FILTER_CLASS = 302;

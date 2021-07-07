@@ -36,7 +36,8 @@ import org.apache.rocketmq.common.protocol.body.ResetOffsetBodyForC;
 import org.apache.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetConsumerStatusRequestHeader;
 import org.apache.rocketmq.common.protocol.header.NotifyConsumerIdsChangedRequestHeader;
-import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ResetOffsetByOffsetRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ResetOffsetByTimeRequestHeader;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
@@ -101,12 +102,8 @@ public class Broker2Client {
         }
     }
 
-    public RemotingCommand resetOffset(String topic, String group, long timeStamp, boolean isForce) {
-        return resetOffset(topic, group, timeStamp, isForce, false);
-    }
-
-    public RemotingCommand resetOffset(String topic, String group, long timeStamp, boolean isForce,
-                                       boolean isC) {
+    public RemotingCommand resetOffsetByTime(String topic, String group, long timeStamp, boolean isForce,
+                                             boolean isC) {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
 
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(topic);
@@ -153,50 +150,18 @@ public class Broker2Client {
             }
         }
 
-        ResetOffsetRequestHeader requestHeader = new ResetOffsetRequestHeader();
+        ResetOffsetByTimeRequestHeader requestHeader = new ResetOffsetByTimeRequestHeader();
         requestHeader.setTopic(topic);
         requestHeader.setGroup(group);
         requestHeader.setTimestamp(timeStamp);
-        RemotingCommand request =
-            RemotingCommand.createRequestCommand(RequestCode.RESET_CONSUMER_CLIENT_OFFSET, requestHeader);
-        if (isC) {
-            // c++ language
-            ResetOffsetBodyForC body = new ResetOffsetBodyForC();
-            List<MessageQueueForC> offsetList = convertOffsetTable2OffsetList(offsetTable);
-            body.setOffsetTable(offsetList);
-            request.setBody(body.encode());
-        } else {
-            // other language
-            ResetOffsetBody body = new ResetOffsetBody();
-            body.setOffsetTable(offsetTable);
-            request.setBody(body.encode());
-        }
+        RemotingCommand request = buildResetOffsetRemotingCommand(isC, offsetTable, RemotingCommand.createRequestCommand(RequestCode.RESET_CONSUMER_CLIENT_OFFSET, requestHeader));
 
         ConsumerGroupInfo consumerGroupInfo =
             this.brokerController.getConsumerManager().getConsumerGroupInfo(group);
 
         if (consumerGroupInfo != null && !consumerGroupInfo.getAllChannel().isEmpty()) {
-            ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable =
-                consumerGroupInfo.getChannelInfoTable();
-            for (Map.Entry<Channel, ClientChannelInfo> entry : channelInfoTable.entrySet()) {
-                int version = entry.getValue().getVersion();
-                if (version >= MQVersion.Version.V3_0_7_SNAPSHOT.ordinal()) {
-                    try {
-                        this.brokerController.getRemotingServer().invokeOneway(entry.getKey(), request, 5000);
-                        log.info("[reset-offset] reset offset success. topic={}, group={}, clientId={}",
-                            topic, group, entry.getValue().getClientId());
-                    } catch (Exception e) {
-                        log.error("[reset-offset] reset offset exception. topic={}, group={} ,error={}",
-                            topic, group, e.toString());
-                    }
-                } else {
-                    response.setCode(ResponseCode.SYSTEM_ERROR);
-                    response.setRemark("the client does not support this feature. version="
-                        + MQVersion.getVersionDesc(version));
-                    log.warn("[reset-offset] the client does not support this feature. channel={}, version={}",
-                        RemotingHelper.parseChannelRemoteAddr(entry.getKey()), MQVersion.getVersionDesc(version));
-                    return response;
-                }
+            if (invokeClientToResetOffset(topic, group, response, request, consumerGroupInfo)) {
+                return response;
             }
         } else {
             String errorInfo =
@@ -214,6 +179,97 @@ public class Broker2Client {
         resBody.setOffsetTable(offsetTable);
         response.setBody(resBody.encode());
         return response;
+    }
+
+    public RemotingCommand resetOffsetByOffset(String topic, String group, int queueId, long offset, boolean isC) {
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+
+        long consumerOffset = this.brokerController.getConsumerOffsetManager().queryOffset(group, topic, queueId);
+        if (-1 == consumerOffset) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark(String.format("The consumer group <%s> not exist", group));
+            return response;
+        }
+
+        TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(topic);
+        if (null == topicConfig) {
+            log.error("[reset-offset] reset offset failed, no topic in this broker. topic={}", topic);
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("[reset-offset] reset offset failed, no topic in this broker. topic=" + topic);
+            return response;
+        }
+
+        long maxOffsetInQueue = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
+        long minOffsetInQueue = this.brokerController.getMessageStore().getMinOffsetInQueue(topic, queueId);
+
+        if (offset > maxOffsetInQueue || offset < minOffsetInQueue) {
+            log.warn("reset offset is invalid. topic={}, queueId={}, offset={}, minOffset={}, maxOffset={}", topic, queueId, offset, minOffsetInQueue, maxOffsetInQueue);
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("[reset-offset] reset offset failed, offset is invalid, topic=" + topic + ", queueId=" + queueId + ",offset=" + offset);
+            return response;
+        }
+
+        MessageQueue mq = new MessageQueue(topic, this.brokerController.getBrokerConfig().getBrokerName(), queueId);
+        Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
+        offsetTable.put(mq, offset);
+
+        ResetOffsetByOffsetRequestHeader requestHeader = new ResetOffsetByOffsetRequestHeader();
+        requestHeader.setTopic(topic);
+        requestHeader.setGroup(group);
+        requestHeader.setQueueId(queueId);
+        requestHeader.setOffset(offset);
+
+        RemotingCommand request = buildResetOffsetRemotingCommand(isC, offsetTable, RemotingCommand.createRequestCommand(RequestCode.RESET_CONSUMER_CLIENT_OFFSET, requestHeader));
+
+        ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(group);
+        if (consumerGroupInfo != null && !consumerGroupInfo.getAllChannel().isEmpty()) {
+            if (invokeClientToResetOffset(topic, group, response, request, consumerGroupInfo)) {
+                return response;
+            }
+        } else {
+            response.setCode(ResponseCode.CONSUMER_NOT_ONLINE);
+            return response;
+        }
+        response.setCode(ResponseCode.SUCCESS);
+        return response;
+    }
+
+    private RemotingCommand buildResetOffsetRemotingCommand(boolean isC, Map<MessageQueue, Long> offsetTable, RemotingCommand requestCommand) {
+        RemotingCommand request = requestCommand;
+        if (isC) {
+            ResetOffsetBodyForC body = new ResetOffsetBodyForC();
+            List<MessageQueueForC> offsetList = convertOffsetTable2OffsetList(offsetTable);
+            body.setOffsetTable(offsetList);
+            request.setBody(body.encode());
+        } else {
+            ResetOffsetBody body = new ResetOffsetBody();
+            body.setOffsetTable(offsetTable);
+            request.setBody(body.encode());
+        }
+        return request;
+    }
+
+    private boolean invokeClientToResetOffset(String topic, String group, RemotingCommand response, RemotingCommand request, ConsumerGroupInfo consumerGroupInfo) {
+        ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable = consumerGroupInfo.getChannelInfoTable();
+        for (Entry<Channel, ClientChannelInfo> entry : channelInfoTable.entrySet()) {
+            int version = entry.getValue().getVersion();
+            String remoteAddr = RemotingHelper.parseChannelRemoteAddr(entry.getKey());
+            if (version >= MQVersion.Version.V3_0_7_SNAPSHOT.ordinal()) {
+                try {
+                    this.brokerController.getRemotingServer().invokeOneway(entry.getKey(), request, 5000);
+                    log.info("[reset-offset] reset offset success. topic={}, group={}, remoteAddr={}", topic, group, remoteAddr);
+                } catch (Exception e) {
+                    log.error("[reset-offset] reset offset exception. topic={}, group={}, remoteAddr={}", topic, group, remoteAddr, e);
+                }
+            } else {
+                String versionDesc = MQVersion.getVersionDesc(version);
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("the client does not support this feature. version=" + versionDesc);
+                log.warn("[reset-offset] the client does not support this feature. remoteAddr={}, version={}", remoteAddr, versionDesc);
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<MessageQueueForC> convertOffsetTable2OffsetList(Map<MessageQueue, Long> table) {

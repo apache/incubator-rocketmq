@@ -87,7 +87,7 @@ public class ResetOffsetByTimeCommandTest {
         when(mQClientAPIImpl.getTopicRouteInfoFromNameServer(anyString(), anyLong())).thenReturn(topicRouteData);
 
         Map<MessageQueue, Long> messageQueueLongMap = new HashMap<>();
-        when(mQClientAPIImpl.invokeBrokerToResetOffset(anyString(), anyString(), anyString(), anyLong(), anyBoolean(), anyLong())).thenReturn(messageQueueLongMap);
+        when(mQClientAPIImpl.invokeBrokerToResetOffsetByTime(anyString(), anyString(), anyString(), anyLong(), anyBoolean(), anyLong())).thenReturn(messageQueueLongMap);
     }
 
     @AfterClass

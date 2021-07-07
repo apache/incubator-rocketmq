@@ -21,15 +21,15 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
-public class ResetOffsetRequestHeader implements CommandCustomHeader {
+public class ResetOffsetByOffsetRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String topic;
     @CFNotNull
     private String group;
     @CFNotNull
-    private long timestamp;
+    private int queueId;
     @CFNotNull
-    private boolean isForce;
+    private long offset;
 
     public String getTopic() {
         return topic;
@@ -47,20 +47,20 @@ public class ResetOffsetRequestHeader implements CommandCustomHeader {
         this.group = group;
     }
 
-    public long getTimestamp() {
-        return timestamp;
+    public int getQueueId() {
+        return queueId;
     }
 
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
+    public void setQueueId(int queueId) {
+        this.queueId = queueId;
     }
 
-    public boolean isForce() {
-        return isForce;
+    public long getOffset() {
+        return offset;
     }
 
-    public void setForce(boolean isForce) {
-        this.isForce = isForce;
+    public void setOffset(long offset) {
+        this.offset = offset;
     }
 
     @Override

@@ -16,17 +16,6 @@
  */
 package org.apache.rocketmq.client.impl;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.consumer.PullCallback;
@@ -122,7 +111,8 @@ import org.apache.rocketmq.common.protocol.header.QueryConsumerOffsetResponseHea
 import org.apache.rocketmq.common.protocol.header.QueryCorrectionOffsetHeader;
 import org.apache.rocketmq.common.protocol.header.QueryMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.QueryTopicConsumeByWhoRequestHeader;
-import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ResetOffsetByOffsetRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ResetOffsetByTimeRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResumeCheckHalfMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SearchOffsetRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SearchOffsetResponseHeader;
@@ -163,6 +153,18 @@ import org.apache.rocketmq.remoting.netty.ResponseFuture;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MQClientAPIImpl {
 
@@ -1589,22 +1591,22 @@ public class MQClientAPIImpl {
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
-    public Map<MessageQueue, Long> invokeBrokerToResetOffset(final String addr, final String topic, final String group,
-        final long timestamp, final boolean isForce, final long timeoutMillis)
+    public Map<MessageQueue, Long> invokeBrokerToResetOffsetByTime(final String addr, final String topic, final String group,
+                                                                   final long timestamp, final boolean isForce, final long timeoutMillis)
         throws RemotingException, MQClientException, InterruptedException {
-        return invokeBrokerToResetOffset(addr, topic, group, timestamp, isForce, timeoutMillis, false);
+        return invokeBrokerToResetOffsetByTime(addr, topic, group, timestamp, isForce, timeoutMillis, false);
     }
 
-    public Map<MessageQueue, Long> invokeBrokerToResetOffset(final String addr, final String topic, final String group,
-        final long timestamp, final boolean isForce, final long timeoutMillis, boolean isC)
+    public Map<MessageQueue, Long> invokeBrokerToResetOffsetByTime(final String addr, final String topic, final String group,
+                                                                   final long timestamp, final boolean isForce, final long timeoutMillis, boolean isC)
         throws RemotingException, MQClientException, InterruptedException {
-        ResetOffsetRequestHeader requestHeader = new ResetOffsetRequestHeader();
+        ResetOffsetByTimeRequestHeader requestHeader = new ResetOffsetByTimeRequestHeader();
         requestHeader.setTopic(topic);
         requestHeader.setGroup(group);
         requestHeader.setTimestamp(timestamp);
         requestHeader.setForce(isForce);
 
-        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.INVOKE_BROKER_TO_RESET_OFFSET, requestHeader);
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.INVOKE_BROKER_TO_RESET_OFFSET_BY_TIME, requestHeader);
         if (isC) {
             request.setLanguage(LanguageCode.CPP);
         }
@@ -1612,18 +1614,33 @@ public class MQClientAPIImpl {
         RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
             request, timeoutMillis);
         assert response != null;
-        switch (response.getCode()) {
-            case ResponseCode.SUCCESS: {
-                if (response.getBody() != null) {
-                    ResetOffsetBody body = ResetOffsetBody.decode(response.getBody(), ResetOffsetBody.class);
-                    return body.getOffsetTable();
-                }
+        if (response.getCode() == ResponseCode.SUCCESS) {
+            if (response.getBody() != null) {
+                ResetOffsetBody body = ResetOffsetBody.decode(response.getBody(), ResetOffsetBody.class);
+                return body.getOffsetTable();
             }
-            default:
-                break;
         }
 
         throw new MQClientException(response.getCode(), response.getRemark());
+    }
+
+    public boolean invokeBrokerToResetOffsetByOffset(final String addr, final String topic, final String group, final int queueId,
+                                                     final long offset, final boolean isC, final long timeoutMillis)
+            throws RemotingException, InterruptedException {
+        ResetOffsetByOffsetRequestHeader requestHeader = new ResetOffsetByOffsetRequestHeader();
+        requestHeader.setTopic(topic);
+        requestHeader.setGroup(group);
+        requestHeader.setQueueId(queueId);
+        requestHeader.setOffset(offset);
+
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.INVOKE_BROKER_TO_RESET_OFFSET_BY_OFFSET, requestHeader);
+        if (isC) {
+            request.setLanguage(LanguageCode.CPP);
+        }
+        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
+                request, timeoutMillis);
+        assert response != null;
+        return response.getCode() == ResponseCode.SUCCESS;
     }
 
     public Map<String, Map<MessageQueue, Long>> invokeBrokerToGetConsumerStatus(final String addr, final String topic,

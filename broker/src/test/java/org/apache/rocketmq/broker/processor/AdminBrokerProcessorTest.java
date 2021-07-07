@@ -19,17 +19,16 @@ package org.apache.rocketmq.broker.processor;
 import com.google.common.collect.Sets;
 import io.netty.channel.ChannelHandlerContext;
 import org.apache.rocketmq.broker.BrokerController;
+import org.apache.rocketmq.broker.client.net.Broker2Client;
 import org.apache.rocketmq.common.BrokerConfig;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicFilterType;
 import org.apache.rocketmq.common.constant.PermName;
-import org.apache.rocketmq.common.message.MessageAccessor;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.CreateTopicRequestHeader;
 import org.apache.rocketmq.common.protocol.header.DeleteTopicRequestHeader;
+import org.apache.rocketmq.common.protocol.header.ResetOffsetByOffsetRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResumeCheckHalfMessageRequestHeader;
 import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
@@ -57,7 +56,8 @@ import java.nio.ByteBuffer;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -75,6 +75,7 @@ public class AdminBrokerProcessorTest {
 
     @Mock
     private MessageStore messageStore;
+    private Broker2Client broker2Client;
 
     private Set<String> systemTopicSet;
 
@@ -82,6 +83,7 @@ public class AdminBrokerProcessorTest {
     public void init() {
         brokerController.setMessageStore(messageStore);
         adminBrokerProcessor = new AdminBrokerProcessor(brokerController);
+        broker2Client = mock(Broker2Client.class);
 
         systemTopicSet = Sets.newHashSet(
                 TopicValidator.RMQ_SYS_SELF_TEST_TOPIC,
@@ -114,6 +116,26 @@ public class AdminBrokerProcessorTest {
                 (PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR)));
         RemotingCommand response = adminBrokerProcessor.processRequest(handlerContext, request);
         assertThat(response.getCode()).isEqualTo(ResponseCode.SYSTEM_ERROR);
+    }
+
+    @Test
+    public void testResetOffsetByOffset() throws Exception {
+        RemotingCommand notOnlineResponse = RemotingCommand.createResponseCommand(ResponseCode.CONSUMER_NOT_ONLINE, "notOnlineRemark");
+
+        ResetOffsetByOffsetRequestHeader header = new ResetOffsetByOffsetRequestHeader();
+        header.setOffset(1);
+        header.setQueueId(0);
+        header.setGroup("group");
+        header.setTopic("topic");
+
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.INVOKE_BROKER_TO_RESET_OFFSET_BY_OFFSET, header);
+        request.makeCustomHeaderToNet();
+
+        when(brokerController.getBroker2Client()).thenReturn(broker2Client);
+        when(broker2Client.resetOffsetByOffset(anyString(), anyString(), anyInt(), anyLong(), anyBoolean())).thenReturn(notOnlineResponse);
+
+        RemotingCommand response = adminBrokerProcessor.processRequest(handlerContext, request);
+        assertThat(response.getRemark()).isEqualToIgnoringCase("[reset-offset] consumer not online, so only update the broker's offset");
     }
 
     @Test
@@ -175,18 +197,6 @@ public class AdminBrokerProcessorTest {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.DELETE_TOPIC_IN_BROKER, requestHeader);
         request.makeCustomHeaderToNet();
         return request;
-    }
-
-    private MessageExt createDefaultMessageExt() {
-        MessageExt messageExt = new MessageExt();
-        messageExt.setMsgId("12345678");
-        messageExt.setQueueId(0);
-        messageExt.setCommitLogOffset(123456789L);
-        messageExt.setQueueOffset(1234);
-        MessageAccessor.putProperty(messageExt, MessageConst.PROPERTY_REAL_QUEUE_ID, "0");
-        MessageAccessor.putProperty(messageExt, MessageConst.PROPERTY_REAL_TOPIC, "testTopic");
-        MessageAccessor.putProperty(messageExt, MessageConst.PROPERTY_TRANSACTION_CHECK_TIMES, "15");
-        return messageExt;
     }
 
     private SelectMappedBufferResult createSelectMappedBufferResult() {
