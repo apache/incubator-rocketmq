@@ -173,7 +173,7 @@ public class IndexService {
 
                     if (f.isTimeMatched(begin, end)) {
 
-                        f.selectPhyOffset(phyOffsets, buildKey(topic, key), maxNum, begin, end, lastFile);
+                        f.selectPhyOffset(phyOffsets, buildKey(topic, key), maxNum, begin, end);
                     }
 
                     if (f.getBeginTimestamp() < begin) {

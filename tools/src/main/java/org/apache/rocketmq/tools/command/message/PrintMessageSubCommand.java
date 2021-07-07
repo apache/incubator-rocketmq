@@ -97,6 +97,10 @@ public class PrintMessageSubCommand implements SubCommand {
         opt.setRequired(false);
         options.addOption(opt);
 
+        opt = new Option("o", "offset", true, "Queue Offset");
+        opt.setRequired(false);
+        options.addOption(opt);
+
         return options;
     }
 
@@ -105,6 +109,8 @@ public class PrintMessageSubCommand implements SubCommand {
         DefaultMQPullConsumer consumer = new DefaultMQPullConsumer(MixAll.TOOLS_CONSUMER_GROUP, rpcHook);
 
         try {
+            int maxNums = 32;
+
             String topic = commandLine.getOptionValue('t').trim();
 
             String charsetName =
@@ -134,12 +140,24 @@ public class PrintMessageSubCommand implements SubCommand {
                     maxOffset = consumer.searchOffset(mq, timeValue);
                 }
 
+                if (commandLine.hasOption("o")) {
+                    long offset = Long.parseLong(commandLine.getOptionValue('o').trim());
+                    if (offset < minOffset || offset > maxOffset) {
+                        System.out.printf("Illegal consumeQueue offset,current consumeQueue: %s, maxOffset: %s, minOffset: %s",
+                            mq.getQueueId(), maxOffset, minOffset);
+                        return;
+                    }
+                    minOffset = offset;
+                    maxOffset = offset + 1;
+                    maxNums = 1;
+                }
+
                 System.out.printf("minOffset=%s, maxOffset=%s, %s", minOffset, maxOffset, mq);
 
                 READQ:
                 for (long offset = minOffset; offset < maxOffset; ) {
                     try {
-                        PullResult pullResult = consumer.pull(mq, subExpression, offset, 32);
+                        PullResult pullResult = consumer.pull(mq, subExpression, offset, maxNums);
                         offset = pullResult.getNextBeginOffset();
                         switch (pullResult.getPullStatus()) {
                             case FOUND:
