@@ -45,6 +45,7 @@ import org.apache.rocketmq.common.SystemClock;
 import org.apache.rocketmq.common.ThreadFactoryImpl;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageExtBatch;
@@ -983,10 +984,26 @@ public class DefaultMessageStore implements MessageStore {
                     if (match) {
                         SelectMappedBufferResult result = this.commitLog.getData(offset, false);
                         if (result != null) {
-                            int size = result.getByteBuffer().getInt(0);
-                            result.getByteBuffer().limit(size);
-                            result.setSize(size);
-                            queryMessageResult.addMessage(result);
+                            MessageExt messageExt = MessageDecoder.decode(result.getByteBuffer());
+                            boolean validKey = false;
+                            if (null != messageExt.getKeys()) {
+                                String[] keys = messageExt.getKeys().split(MessageConst.KEY_SEPARATOR);
+                                for (int e = 0; e < keys.length; e++) {
+                                    if (key.equals(keys[e])) {
+                                        validKey = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            String uniqKey = messageExt.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+
+                            if (uniqKey.equals(key) || validKey) {
+                                int size = result.getByteBuffer().getInt(0);
+                                result.getByteBuffer().position(0);
+                                result.getByteBuffer().limit(size);
+                                result.setSize(size);
+                                queryMessageResult.addMessage(result);
+                            }
                         }
                     } else {
                         log.warn("queryMessage hash duplicate, {} {}", topic, key);

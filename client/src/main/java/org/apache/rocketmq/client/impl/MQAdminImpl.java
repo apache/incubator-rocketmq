@@ -40,7 +40,6 @@ import org.apache.rocketmq.common.help.FAQUrl;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageClientIDSetter;
-import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageId;
@@ -388,42 +387,12 @@ public class MQAdminImpl {
                     for (MessageExt msgExt : qr.getMessageList()) {
                         if (isUniqKey) {
                             if (msgExt.getMsgId().equals(key)) {
-
-                                if (messageList.size() > 0) {
-
-                                    if (messageList.get(0).getStoreTimestamp() > msgExt.getStoreTimestamp()) {
-
-                                        messageList.clear();
-                                        messageList.add(msgExt);
-                                    }
-
-                                } else {
-
-                                    messageList.add(msgExt);
-                                }
+                                messageList.add(msgExt);
                             } else {
                                 log.warn("queryMessage by uniqKey, find message key not matched, maybe hash duplicate {}", msgExt.toString());
                             }
                         } else {
-                            String keys = msgExt.getKeys();
-                            if (keys != null) {
-                                boolean matched = false;
-                                String[] keyArray = keys.split(MessageConst.KEY_SEPARATOR);
-                                if (keyArray != null) {
-                                    for (String k : keyArray) {
-                                        if (key.equals(k)) {
-                                            matched = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (matched) {
-                                    messageList.add(msgExt);
-                                } else {
-                                    log.warn("queryMessage, find message key not matched, maybe hash duplicate {}", msgExt.toString());
-                                }
-                            }
+                            messageList.add(msgExt);
                         }
                     }
                 }
