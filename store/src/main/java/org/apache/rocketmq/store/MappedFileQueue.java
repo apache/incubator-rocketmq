@@ -433,6 +433,9 @@ public class MappedFileQueue {
             this.flushedWhere = where;
             if (0 == flushLeastPages) {
                 this.storeTimestamp = tmpTimeStamp;
+                if (this.storeTimestamp > 0) {
+                    mappedFile.getFile().setLastModified(this.storeTimestamp);
+                }
             }
         }
 
