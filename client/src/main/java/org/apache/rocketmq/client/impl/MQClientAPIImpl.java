@@ -1592,14 +1592,15 @@ public class MQClientAPIImpl {
     public Map<MessageQueue, Long> invokeBrokerToResetOffset(final String addr, final String topic, final String group,
         final long timestamp, final boolean isForce, final long timeoutMillis)
         throws RemotingException, MQClientException, InterruptedException {
-        return invokeBrokerToResetOffset(addr, topic, group, timestamp, isForce, timeoutMillis, false);
+        return invokeBrokerToResetOffset(addr, topic, null, group, timestamp, isForce, timeoutMillis, false);
     }
 
-    public Map<MessageQueue, Long> invokeBrokerToResetOffset(final String addr, final String topic, final String group,
+    public Map<MessageQueue, Long> invokeBrokerToResetOffset(final String addr, final String topic, final String queueStr, final String group,
         final long timestamp, final boolean isForce, final long timeoutMillis, boolean isC)
         throws RemotingException, MQClientException, InterruptedException {
         ResetOffsetRequestHeader requestHeader = new ResetOffsetRequestHeader();
         requestHeader.setTopic(topic);
+        requestHeader.setQueue(queueStr);
         requestHeader.setGroup(group);
         requestHeader.setTimestamp(timestamp);
         requestHeader.setForce(isForce);

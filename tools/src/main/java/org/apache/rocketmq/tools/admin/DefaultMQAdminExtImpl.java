@@ -449,7 +449,7 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
     }
 
     @Override
-    public List<RollbackStats> resetOffsetByTimestampOld(String consumerGroup, String topic, long timestamp,
+    public List<RollbackStats> resetOffsetByTimestampOld(String brokerAddr, String consumerGroup, String topic, String queueStr, long timestamp,
         boolean force)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         TopicRouteData topicRouteData = this.examineTopicRouteInfo(topic);
@@ -460,80 +460,141 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
                 topicRouteMap.put(bd.selectBrokerAddr(), queueData.getReadQueueNums());
             }
         }
-        for (BrokerData bd : topicRouteData.getBrokerDatas()) {
-            String addr = bd.selectBrokerAddr();
-            if (addr != null) {
-                ConsumeStats consumeStats = this.mqClientInstance.getMQClientAPIImpl().getConsumeStats(addr, consumerGroup, timeoutMillis);
 
-                boolean hasConsumed = false;
-                for (Map.Entry<MessageQueue, OffsetWrapper> entry : consumeStats.getOffsetTable().entrySet()) {
-                    MessageQueue queue = entry.getKey();
-                    OffsetWrapper offsetWrapper = entry.getValue();
-                    if (topic.equals(queue.getTopic())) {
-                        hasConsumed = true;
-                        RollbackStats rollbackStats = resetOffsetConsumeOffset(addr, consumerGroup, queue, offsetWrapper, timestamp, force);
-                        rollbackStatsList.add(rollbackStats);
-                    }
+        if (null != brokerAddr) {
+            boolean validBrokerAddr = false;
+            BrokerData bd = null;
+            for (Iterator<BrokerData> itr = topicRouteData.getBrokerDatas().iterator(); itr.hasNext(); ) {
+                bd = itr.next();
+                if (bd.getBrokerAddrs().containsValue(brokerAddr)) {
+                    validBrokerAddr = true;
+                    break;
                 }
-
-                if (!hasConsumed) {
-                    HashMap<MessageQueue, TopicOffset> topicStatus =
-                        this.mqClientInstance.getMQClientAPIImpl().getTopicStatsInfo(addr, topic, timeoutMillis).getOffsetTable();
-                    for (int i = 0; i < topicRouteMap.get(addr); i++) {
-                        MessageQueue queue = new MessageQueue(topic, bd.getBrokerName(), i);
-                        OffsetWrapper offsetWrapper = new OffsetWrapper();
-                        offsetWrapper.setBrokerOffset(topicStatus.get(queue).getMaxOffset());
-                        offsetWrapper.setConsumerOffset(topicStatus.get(queue).getMinOffset());
-
-                        RollbackStats rollbackStats = resetOffsetConsumeOffset(addr, consumerGroup, queue, offsetWrapper, timestamp, force);
-                        rollbackStatsList.add(rollbackStats);
-                    }
+            }
+            if (validBrokerAddr) {
+                collectRollbackStats(topicRouteMap, bd, rollbackStatsList, brokerAddr, consumerGroup, topic, queueStr, timestamp, force);
+                return rollbackStatsList;
+            }
+        } else {
+            for (BrokerData bd : topicRouteData.getBrokerDatas()) {
+                String addr = bd.selectBrokerAddr();
+                if (null != addr) {
+                    collectRollbackStats(topicRouteMap, bd, rollbackStatsList, addr, consumerGroup, topic, queueStr, timestamp, force);
                 }
             }
         }
+
         return rollbackStatsList;
     }
 
-    @Override
-    public Map<MessageQueue, Long> resetOffsetByTimestamp(String topic, String group, long timestamp, boolean isForce)
-        throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-        return resetOffsetByTimestamp(topic, group, timestamp, isForce, false);
+    private void collectRollbackStats(Map<String, Integer> topicRouteMap, BrokerData bd, List<RollbackStats> rollbackStatsList, String addr,
+                                      String consumerGroup, String topic, String queueStr, long timestamp, boolean force)
+        throws InterruptedException, MQBrokerException, RemotingException {
+        if (addr != null) {
+            ConsumeStats consumeStats = this.mqClientInstance.getMQClientAPIImpl().getConsumeStats(addr, consumerGroup, timeoutMillis);
+
+            List<Integer> queueList = null;
+            if (null != queueStr) {
+                String[] split = queueStr.split(",");
+                queueList = new ArrayList<>(split.length);
+                for (int i = 0; i < split.length; i++) {
+                    queueList.add(Integer.parseInt(split[i].trim()));
+                }
+            }
+
+            boolean hasConsumed = false;
+            for (Map.Entry<MessageQueue, OffsetWrapper> entry : consumeStats.getOffsetTable().entrySet()) {
+                MessageQueue queue = entry.getKey();
+                OffsetWrapper offsetWrapper = entry.getValue();
+                if (topic.equals(queue.getTopic())) {
+                    if (null != queueList && !queueList.contains(queue.getQueueId())) {
+                        continue;
+                    }
+
+                    hasConsumed = true;
+                    RollbackStats rollbackStats = resetOffsetConsumeOffset(addr, consumerGroup, queue, offsetWrapper, timestamp, force);
+                    rollbackStatsList.add(rollbackStats);
+                }
+            }
+
+            if (!hasConsumed) {
+                HashMap<MessageQueue, TopicOffset> topicStatus =
+                        this.mqClientInstance.getMQClientAPIImpl().getTopicStatsInfo(addr, topic, timeoutMillis).getOffsetTable();
+                for (int i = 0; i < topicRouteMap.get(addr); i++) {
+                    MessageQueue queue = new MessageQueue(topic, bd.getBrokerName(), i);
+                    OffsetWrapper offsetWrapper = new OffsetWrapper();
+                    offsetWrapper.setBrokerOffset(topicStatus.get(queue).getMaxOffset());
+                    offsetWrapper.setConsumerOffset(topicStatus.get(queue).getMinOffset());
+
+                    RollbackStats rollbackStats = resetOffsetConsumeOffset(addr, consumerGroup, queue, offsetWrapper, timestamp, force);
+                    rollbackStatsList.add(rollbackStats);
+                }
+            }
+        }
     }
 
     @Override
-    public void resetOffsetNew(String consumerGroup, String topic,
+    public Map<MessageQueue, Long> resetOffsetByTimestamp(String brokerAddr, String topic, String queueStr, String group, long timestamp, boolean isForce)
+        throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+        return resetOffsetByTimestamp(brokerAddr, topic, queueStr, group, timestamp, isForce, false);
+    }
+
+    @Override
+    public void resetOffsetNew(String brokerAddr, String consumerGroup, String topic, String queueStr,
         long timestamp) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException {
         try {
-            this.resetOffsetByTimestamp(topic, consumerGroup, timestamp, true);
+            this.resetOffsetByTimestamp(brokerAddr, topic, queueStr, consumerGroup, timestamp, true);
         } catch (MQClientException e) {
             if (ResponseCode.CONSUMER_NOT_ONLINE == e.getResponseCode()) {
-                this.resetOffsetByTimestampOld(consumerGroup, topic, timestamp, true);
+                this.resetOffsetByTimestampOld(brokerAddr, consumerGroup, topic, queueStr, timestamp, true);
                 return;
             }
             throw e;
         }
     }
 
-    public Map<MessageQueue, Long> resetOffsetByTimestamp(String topic, String group, long timestamp, boolean isForce,
+    public Map<MessageQueue, Long> resetOffsetByTimestamp(String brokerAddr, String topic, String queueStr, String group, long timestamp, boolean isForce,
         boolean isC)
-        throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+        throws RemotingException, InterruptedException, MQClientException {
         TopicRouteData topicRouteData = this.examineTopicRouteInfo(topic);
         List<BrokerData> brokerDatas = topicRouteData.getBrokerDatas();
         Map<MessageQueue, Long> allOffsetTable = new HashMap<MessageQueue, Long>();
-        if (brokerDatas != null) {
+        if (null == brokerDatas) {
+            return allOffsetTable;
+        }
+
+        if (null != brokerAddr) {
+            boolean validBrokerAddr = false;
+            for (Iterator<BrokerData> itr = brokerDatas.iterator(); itr.hasNext();) {
+                BrokerData bd = itr.next();
+                if (bd.getBrokerAddrs().containsValue(brokerAddr)) {
+                    validBrokerAddr = true;
+                    break;
+                }
+            }
+            if (validBrokerAddr) {
+                Map<MessageQueue, Long> offsetTable =
+                        this.mqClientInstance.getMQClientAPIImpl().invokeBrokerToResetOffset(brokerAddr, topic, queueStr, group, timestamp, isForce,
+                                timeoutMillis, isC);
+                if (offsetTable != null) {
+                    allOffsetTable.putAll(offsetTable);
+                }
+            }
+        } else {
             for (BrokerData brokerData : brokerDatas) {
                 String addr = brokerData.selectBrokerAddr();
                 if (addr != null) {
                     Map<MessageQueue, Long> offsetTable =
-                        this.mqClientInstance.getMQClientAPIImpl().invokeBrokerToResetOffset(addr, topic, group, timestamp, isForce,
-                            timeoutMillis, isC);
+                            this.mqClientInstance.getMQClientAPIImpl().invokeBrokerToResetOffset(addr, topic, queueStr, group, timestamp, isForce,
+                                    timeoutMillis, isC);
                     if (offsetTable != null) {
                         allOffsetTable.putAll(offsetTable);
                     }
                 }
             }
         }
+
         return allOffsetTable;
     }
 

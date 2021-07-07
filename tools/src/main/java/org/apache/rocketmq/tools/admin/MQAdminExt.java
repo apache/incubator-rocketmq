@@ -162,13 +162,13 @@ public interface MQAdminExt extends MQAdmin {
     void deleteKvConfig(String namespace, String key) throws RemotingException, MQBrokerException, InterruptedException,
         MQClientException;
 
-    List<RollbackStats> resetOffsetByTimestampOld(String consumerGroup, String topic, long timestamp, boolean force)
+    List<RollbackStats> resetOffsetByTimestampOld(String brokerAddr, String consumerGroup, String topic, String queueStr, long timestamp, boolean force)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 
-    Map<MessageQueue, Long> resetOffsetByTimestamp(String topic, String group, long timestamp, boolean isForce)
+    Map<MessageQueue, Long> resetOffsetByTimestamp(String brokerAddr, String topic, String queueStr, String group, long timestamp, boolean isForce)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 
-    void resetOffsetNew(String consumerGroup, String topic, long timestamp) throws RemotingException, MQBrokerException,
+    void resetOffsetNew(String brokerAddr, String consumerGroup, String topic, String queueStr, long timestamp) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException;
 
     Map<String, Map<MessageQueue, Long>> getConsumeStatus(String topic, String group,

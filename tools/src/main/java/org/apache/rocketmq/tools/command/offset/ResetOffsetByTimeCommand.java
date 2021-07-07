@@ -19,6 +19,7 @@ package org.apache.rocketmq.tools.command.offset;
 
 import java.util.Iterator;
 import java.util.Map;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -30,6 +31,8 @@ import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
+
+
 
 public class ResetOffsetByTimeCommand implements SubCommand {
 
@@ -49,8 +52,16 @@ public class ResetOffsetByTimeCommand implements SubCommand {
         opt.setRequired(true);
         options.addOption(opt);
 
+        opt = new Option("b", "broker", true, "set broker address");
+        opt.setRequired(false);
+        options.addOption(opt);
+
         opt = new Option("t", "topic", true, "set the topic");
         opt.setRequired(true);
+        options.addOption(opt);
+
+        opt = new Option("q", "queue", true, "set the queue, eg: 0,1");
+        opt.setRequired(false);
         options.addOption(opt);
 
         opt = new Option("s", "timestamp", true, "set the timestamp[now|currentTimeMillis|yyyy-MM-dd#HH:mm:ss:SSS]");
@@ -64,6 +75,7 @@ public class ResetOffsetByTimeCommand implements SubCommand {
         opt = new Option("c", "cplus", false, "reset c++ client offset");
         opt.setRequired(false);
         options.addOption(opt);
+
         return options;
     }
 
@@ -72,17 +84,16 @@ public class ResetOffsetByTimeCommand implements SubCommand {
         DefaultMQAdminExt defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
         defaultMQAdminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
         try {
+            String brokerAddr = commandLine.hasOption("b") ? commandLine.getOptionValue("b").trim() : null;
             String group = commandLine.getOptionValue("g").trim();
             String topic = commandLine.getOptionValue("t").trim();
             String timeStampStr = commandLine.getOptionValue("s").trim();
             long timestamp = timeStampStr.equals("now") ? System.currentTimeMillis() : 0;
-
             try {
                 if (timestamp == 0) {
                     timestamp = Long.parseLong(timeStampStr);
                 }
             } catch (NumberFormatException e) {
-
                 timestamp = UtilAll.parseDate(timeStampStr, UtilAll.YYYY_MM_DD_HH_MM_SS_SSS).getTime();
             }
 
@@ -96,20 +107,33 @@ public class ResetOffsetByTimeCommand implements SubCommand {
                 isC = true;
             }
 
+            String queueStr = null;
+            if (commandLine.hasOption("q")) {
+                queueStr = commandLine.getOptionValue("q").trim();
+                String[] queues = queueStr.split(",");
+                for (int i = 0; i < queues.length; i++) {
+                    queues[i] = queues[i].trim();
+                    if (Integer.parseInt(queues[i]) < 0) {
+                        throw new Exception("queue id must be nonnegative");
+                    }
+                }
+                queueStr = String.join(",", queues);
+            }
+
             defaultMQAdminExt.start();
             Map<MessageQueue, Long> offsetTable;
             try {
-                offsetTable = defaultMQAdminExt.resetOffsetByTimestamp(topic, group, timestamp, force, isC);
+                offsetTable = defaultMQAdminExt.resetOffsetByTimestamp(brokerAddr, topic, queueStr, group, timestamp, force, isC);
             } catch (MQClientException e) {
                 if (ResponseCode.CONSUMER_NOT_ONLINE == e.getResponseCode()) {
-                    ResetOffsetByTimeOldCommand.resetOffset(defaultMQAdminExt, group, topic, timestamp, force, timeStampStr);
+                    ResetOffsetByTimeOldCommand.resetOffset(defaultMQAdminExt, brokerAddr, group, topic, queueStr, timestamp, force, timeStampStr);
                     return;
                 }
                 throw e;
             }
 
-            System.out.printf("rollback consumer offset by specified group[%s], topic[%s], force[%s], timestamp(string)[%s], timestamp(long)[%s]%n",
-                group, topic, force, timeStampStr, timestamp);
+            System.out.printf("rollback consumer offset by specified broker[%s], group[%s], topic[%s], queue[%s], force[%s], timestamp(string)[%s], timestamp(long)[%s]%n",
+                brokerAddr, group, topic, queueStr, force, timeStampStr, timestamp);
 
             System.out.printf("%-40s  %-40s  %-40s%n",
                 "#brokerName",

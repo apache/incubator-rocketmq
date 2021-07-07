@@ -19,11 +19,14 @@ package org.apache.rocketmq.common.protocol.header;
 
 import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
+import org.apache.rocketmq.remoting.annotation.CFNullable;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
 public class ResetOffsetRequestHeader implements CommandCustomHeader {
     @CFNotNull
     private String topic;
+    @CFNullable
+    private String queue;
     @CFNotNull
     private String group;
     @CFNotNull
@@ -37,6 +40,14 @@ public class ResetOffsetRequestHeader implements CommandCustomHeader {
 
     public void setTopic(String topic) {
         this.topic = topic;
+    }
+
+    public String getQueue() {
+        return queue;
+    }
+
+    public void setQueue(String queue) {
+        this.queue = queue;
     }
 
     public String getGroup() {

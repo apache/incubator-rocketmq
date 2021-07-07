@@ -101,11 +101,11 @@ public class Broker2Client {
         }
     }
 
-    public RemotingCommand resetOffset(String topic, String group, long timeStamp, boolean isForce) {
-        return resetOffset(topic, group, timeStamp, isForce, false);
+    public RemotingCommand resetOffset(String topic, String queueStr, String group, long timeStamp, boolean isForce) {
+        return resetOffset(topic, queueStr, group, timeStamp, isForce, false);
     }
 
-    public RemotingCommand resetOffset(String topic, String group, long timeStamp, boolean isForce,
+    public RemotingCommand resetOffset(String topic, String queueStr, String group, long timeStamp, boolean isForce,
                                        boolean isC) {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
 
@@ -117,9 +117,21 @@ public class Broker2Client {
             return response;
         }
 
-        Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
+        List<Integer> queueList = null;
+        if (null != queueStr) {
+            String[] split = queueStr.split(",");
+            queueList = new ArrayList<>(split.length);
+            for (int i = 0; i < split.length; i++) {
+                queueList.add(Integer.parseInt(split[i].trim()));
+            }
+        }
 
-        for (int i = 0; i < topicConfig.getWriteQueueNums(); i++) {
+        Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
+        for (int i = 0; i < topicConfig.getReadQueueNums(); i++) {
+            if (null != queueList && !queueList.contains(i)) {
+                continue;
+            }
+
             MessageQueue mq = new MessageQueue();
             mq.setBrokerName(this.brokerController.getBrokerConfig().getBrokerName());
             mq.setTopic(topic);

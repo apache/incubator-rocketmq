@@ -19,7 +19,7 @@ package org.apache.rocketmq.client.impl;
 import io.netty.channel.ChannelHandlerContext;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
@@ -149,14 +149,19 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
         RemotingCommand request) throws RemotingCommandException {
         final ResetOffsetRequestHeader requestHeader =
             (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
-        log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
-            RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
-            requestHeader.getTimestamp());
-        Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
+        Map<MessageQueue, Long> offsetTable = null;
         if (request.getBody() != null) {
             ResetOffsetBody body = ResetOffsetBody.decode(request.getBody(), ResetOffsetBody.class);
             offsetTable = body.getOffsetTable();
         }
+        if (offsetTable == null) {
+            offsetTable = Collections.emptyMap();
+        }
+
+        log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}, offsetTable={}",
+                RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
+                requestHeader.getTimestamp(), offsetTable);
+
         this.mqClientFactory.resetOffset(requestHeader.getTopic(), requestHeader.getGroup(), offsetTable);
         return null;
     }
