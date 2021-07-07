@@ -75,7 +75,7 @@ public class ResetOffsetByTimeCommand implements SubCommand {
             String group = commandLine.getOptionValue("g").trim();
             String topic = commandLine.getOptionValue("t").trim();
             String timeStampStr = commandLine.getOptionValue("s").trim();
-            long timestamp = timeStampStr.equals("now") ? System.currentTimeMillis() : 0;
+            long timestamp = timeStampStr.equals("now") ? -1 : 0;
 
             try {
                 if (timestamp == 0) {
