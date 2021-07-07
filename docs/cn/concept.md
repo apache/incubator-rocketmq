@@ -23,7 +23,7 @@ RocketMQ主要由 Producer、Broker、Consumer 三部分组成，其中Producer 
   Consumer消费的一种类型，应用通常主动调用Consumer的拉消息方法从Broker服务器拉消息、主动权由应用控制。一旦获取了批量消息，应用就会启动消费过程。
   
 ## 8 推动式消费（Push Consumer）
- Consumer消费的一种类型，该模式下Broker收到数据后会主动推送给消费端，该消费模式一般实时性较高。
+ Consumer消费的一种类型，应用不需要主动调用Consumer的拉消息方法，在底层已经封装了拉取的调用逻辑，在用户层面看来是broker把消息推送过来的，其实底层还是consumer去broker主动拉取消息。
  
 ## 9 生产者组（Producer Group）
   同一类Producer的集合，这类Producer发送同一类消息且发送逻辑一致。如果发送的是事务消息且原始生产者在发送之后崩溃，则Broker服务器会联系同一生产者组的其他生产者实例以提交或回溯消费。

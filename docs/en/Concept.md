@@ -18,7 +18,8 @@ The Name Server serves as the provider of routing service. The producer or the c
 ## 7 Pull Consumer
 A type of Consumer, the application pulls messages from brokers by actively invoking the consumer pull message method, and the application has the advantages of controlling the timing and frequency of pulling messages. Once the batch of messages is pulled, user application will initiate consuming process.                    
 ## 8 Push Consumer
-A type of Consumer, Under this high real-time performance mode, it will push the message to the consumer actively when the Broker receives the data.                       
+A type of Consumer, the application do not invoke the consumer pull message method to pull messages, instead the client invoke pull message method itself. At the user level it seems like brokers 
+push to consumer when new messages arrived.                        
 ## 9 Producer Group
 A collection of the same type of Producer, which sends the same type of messages with consistent logic. If a transaction message is sent and the original producer crashes after sending, the broker server will contact other producers in the same producer group to commit or rollback the transactional message.
 ## 10 Consumer Group
