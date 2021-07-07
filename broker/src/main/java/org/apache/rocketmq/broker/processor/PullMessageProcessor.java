@@ -495,29 +495,33 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         try {
             List<ByteBuffer> messageBufferList = getMessageResult.getMessageBufferList();
             for (ByteBuffer bb : messageBufferList) {
-
                 byteBuffer.put(bb);
-                int sysFlag = bb.getInt(MessageDecoder.SYSFLAG_POSITION);
-//                bornhost has the IPv4 ip if the MessageSysFlag.BORNHOST_V6_FLAG bit of sysFlag is 0
-//                IPv4 host = ip(4 byte) + port(4 byte); IPv6 host = ip(16 byte) + port(4 byte)
+            }
+            if (messageBufferList.size() > 0) {
+                ByteBuffer lastMsgBuffer = messageBufferList.get(messageBufferList.size() - 1);
+                int sysFlag = lastMsgBuffer.getInt(MessageDecoder.SYSFLAG_POSITION);
+                // bornhost has the IPv4 ip if the MessageSysFlag.BORNHOST_V6_FLAG bit of sysFlag is 0
+                // IPv4 host = ip(4 byte) + port(4 byte); IPv6 host = ip(16 byte) + port(4 byte)
                 int bornhostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 8 : 20;
                 int msgStoreTimePos = 4 // 1 TOTALSIZE
-                    + 4 // 2 MAGICCODE
-                    + 4 // 3 BODYCRC
-                    + 4 // 4 QUEUEID
-                    + 4 // 5 FLAG
-                    + 8 // 6 QUEUEOFFSET
-                    + 8 // 7 PHYSICALOFFSET
-                    + 4 // 8 SYSFLAG
-                    + 8 // 9 BORNTIMESTAMP
-                    + bornhostLength; // 10 BORNHOST
-                storeTimestamp = bb.getLong(msgStoreTimePos);
+                        + 4 // 2 MAGICCODE
+                        + 4 // 3 BODYCRC
+                        + 4 // 4 QUEUEID
+                        + 4 // 5 FLAG
+                        + 8 // 6 QUEUEOFFSET
+                        + 8 // 7 PHYSICALOFFSET
+                        + 4 // 8 SYSFLAG
+                        + 8 // 9 BORNTIMESTAMP
+                        + bornhostLength; // 10 BORNHOST
+                storeTimestamp = lastMsgBuffer.getLong(msgStoreTimePos);
             }
         } finally {
             getMessageResult.release();
         }
 
-        this.brokerController.getBrokerStatsManager().recordDiskFallBehindTime(group, topic, queueId, this.brokerController.getMessageStore().now() - storeTimestamp);
+        if (storeTimestamp > 0) {
+            this.brokerController.getBrokerStatsManager().recordDiskFallBehindTime(group, topic, queueId, this.brokerController.getMessageStore().now() - storeTimestamp);
+        }
         return byteBuffer.array();
     }
 

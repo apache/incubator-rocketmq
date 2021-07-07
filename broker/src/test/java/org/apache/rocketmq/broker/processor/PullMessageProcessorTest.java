@@ -203,6 +203,7 @@ public class PullMessageProcessorTest {
         requestHeader.setTopic(topic);
         requestHeader.setSysFlag(0);
         requestHeader.setSubVersion(100L);
+        requestHeader.setSuspendTimeoutMillis(5000L);
         RemotingCommand request = RemotingCommand.createRequestCommand(requestCode, requestHeader);
         request.makeCustomHeaderToNet();
         return request;
