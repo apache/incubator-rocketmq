@@ -16,9 +16,6 @@
  */
 package org.apache.rocketmq.tools.command.acl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionGroup;
@@ -27,11 +24,15 @@ import org.apache.rocketmq.common.PlainAccessConfig;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
+import org.apache.rocketmq.tools.command.AbstractSubCommand;
 import org.apache.rocketmq.tools.command.CommandUtil;
-import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
 
-public class UpdateAccessConfigSubCommand implements SubCommand {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+public class UpdateAccessConfigSubCommand extends AbstractSubCommand {
 
     @Override
     public String commandName() {
@@ -95,7 +96,7 @@ public class UpdateAccessConfigSubCommand implements SubCommand {
     public void execute(CommandLine commandLine, Options options,
         RPCHook rpcHook) throws SubCommandException {
 
-        DefaultMQAdminExt defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
+        DefaultMQAdminExt defaultMQAdminExt = createMQAdminExt(rpcHook);
         defaultMQAdminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
 
         try {
@@ -153,7 +154,6 @@ public class UpdateAccessConfigSubCommand implements SubCommand {
             if (commandLine.hasOption('b')) {
                 String addr = commandLine.getOptionValue('b').trim();
 
-                defaultMQAdminExt.start();
                 defaultMQAdminExt.createAndUpdatePlainAccessConfig(addr, accessConfig);
 
                 System.out.printf("create or update plain access config to %s success.%n", addr);
@@ -163,9 +163,8 @@ public class UpdateAccessConfigSubCommand implements SubCommand {
             } else if (commandLine.hasOption('c')) {
                 String clusterName = commandLine.getOptionValue('c').trim();
 
-                defaultMQAdminExt.start();
                 Set<String> masterSet =
-                    CommandUtil.fetchMasterAddrByClusterName(defaultMQAdminExt, clusterName);
+                    CommandUtil.fetchMasterAndSlaveAddrByClusterName(defaultMQAdminExt, clusterName);
                 for (String addr : masterSet) {
                     defaultMQAdminExt.createAndUpdatePlainAccessConfig(addr, accessConfig);
                     System.out.printf("create or update plain access config to %s success.%n", addr);

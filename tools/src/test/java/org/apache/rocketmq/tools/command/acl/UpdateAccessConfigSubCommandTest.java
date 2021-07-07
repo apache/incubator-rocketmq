@@ -16,36 +16,63 @@
  */
 package org.apache.rocketmq.tools.command.acl;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+import org.apache.rocketmq.client.exception.MQBrokerException;
+import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.PlainAccessConfig;
+import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.srvutil.ServerUtil;
+import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
+import org.apache.rocketmq.tools.command.CommandUtil;
+import org.apache.rocketmq.tools.command.SubCommandException;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(CommandUtil.class)
 public class UpdateAccessConfigSubCommandTest {
+    private static UpdateAccessConfigSubCommand cmd = new UpdateAccessConfigSubCommand();
+    private static DefaultMQAdminExt defaultMQAdminExt;
+
+    @BeforeClass
+    public static void init() throws Exception {
+        defaultMQAdminExt = mock(DefaultMQAdminExt.class);
+        Field field = UpdateAccessConfigSubCommand.class.getField("defaultMQAdminExt");
+        field.setAccessible(true);
+        field.set(cmd, defaultMQAdminExt);
+    }
 
     @Test
-    public void testExecute() {
-        UpdateAccessConfigSubCommand cmd = new UpdateAccessConfigSubCommand();
+    public void testExecuteWithOptionBroker() throws SubCommandException, InterruptedException, RemotingException, MQClientException, MQBrokerException {
         Options options = ServerUtil.buildCommandlineOptions(new Options());
-        String[] subargs = new String[] {
-            "-b 127.0.0.1:10911",
-            "-a RocketMQ",
-            "-s 12345678",
-            "-w 192.168.0.*",
-            "-i DENY",
-            "-u SUB",
-            "-t topicA=DENY;topicB=PUB|SUB",
-            "-g groupA=DENY;groupB=SUB",
-            "-m true"};
+        String[] subargs = new String[]{
+                "-b 127.0.0.1:10911",
+                "-a RocketMQ",
+                "-s 12345678",
+                "-w 192.168.0.*",
+                "-i DENY",
+                "-u SUB",
+                "-t topicA=DENY;topicB=PUB|SUB",
+                "-g groupA=DENY;groupB=SUB",
+                "-m true"};
         final CommandLine commandLine =
-            ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options), new PosixParser());
+                ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options), new PosixParser());
         assertThat(commandLine.getOptionValue('b').trim()).isEqualTo("127.0.0.1:10911");
         assertThat(commandLine.getOptionValue('a').trim()).isEqualTo("RocketMQ");
         assertThat(commandLine.getOptionValue('s').trim()).isEqualTo("12345678");
@@ -85,5 +112,54 @@ public class UpdateAccessConfigSubCommandTest {
         Assert.assertTrue(accessConfig.getTopicPerms().contains("topicB=PUB|SUB"));
         Assert.assertTrue(accessConfig.getGroupPerms().contains("groupB=SUB"));
 
+        cmd.execute(commandLine, options, null);
+        verify(defaultMQAdminExt, times(1)).createAndUpdatePlainAccessConfig(eq("127.0.0.1:10911"), any());
     }
+
+    @Test
+    public void testExecuteWithOptionCluster() throws Exception {
+        String clusterName = "defaultTestCluster";
+        Options options = ServerUtil.buildCommandlineOptions(new Options());
+        String[] subargs = new String[]{
+                "-c " + clusterName,
+                "-a RocketMQ",
+                "-s 12345678",
+                "-w 192.168.0.*",
+                "-i DENY",
+                "-u SUB",
+                "-t topicA=DENY;topicB=PUB|SUB",
+                "-g groupA=DENY;groupB=SUB",
+                "-m true"};
+        final CommandLine commandLine =
+                ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options), new PosixParser());
+        Set<String> masterAndSlaveAddrSet = new HashSet<>();
+        masterAndSlaveAddrSet.add("1.1.1.1:10911");
+        masterAndSlaveAddrSet.add("1.1.1.2:10911");
+        PowerMockito.mockStatic(CommandUtil.class);
+        PowerMockito.when(CommandUtil.fetchMasterAndSlaveAddrByClusterName(defaultMQAdminExt, clusterName)).thenReturn(masterAndSlaveAddrSet);
+        cmd.execute(commandLine, options, null);
+        verify(defaultMQAdminExt, times(1)).createAndUpdatePlainAccessConfig(eq("1.1.1.1:10911"), any());
+        verify(defaultMQAdminExt, times(1)).createAndUpdatePlainAccessConfig(eq("1.1.1.2:10911"), any());
+    }
+
+    @Test(expected = SubCommandException.class)
+    public void testExecuteWithException() throws Exception {
+        String clusterName = "defaultTestCluster";
+        Options options = ServerUtil.buildCommandlineOptions(new Options());
+        String[] subargs = new String[]{
+                "-c " + clusterName,
+                "-a RocketMQ",
+                "-s 12345678",
+                "-w 192.168.0.*",
+                "-i DENY",
+                "-u SUB",
+                "-t topicA=DENY;topicB=PUB|SUB",
+                "-g groupA=DENY;groupB=SUB",
+                "-m true"};
+        final CommandLine commandLine =
+                ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options), new PosixParser());
+        cmd.execute(commandLine, options, null);
+        doThrow(new Exception()).when(defaultMQAdminExt).createAndUpdatePlainAccessConfig(any(), any());
+    }
+
 }
