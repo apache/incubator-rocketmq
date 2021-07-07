@@ -209,6 +209,7 @@ public class DefaultMQAdminExtTest {
         when(mQClientAPIImpl.getProducerConnectionList(anyString(), anyString(), anyLong())).thenReturn(producerConnection);
 
         when(mQClientAPIImpl.wipeWritePermOfBroker(anyString(), anyString(), anyLong())).thenReturn(6);
+        when(mQClientAPIImpl.addWritePermOfBroker(anyString(), anyString(), anyLong())).thenReturn(7);
 
         TopicStatsTable topicStatsTable = new TopicStatsTable();
         topicStatsTable.setOffsetTable(new HashMap<MessageQueue, TopicOffset>());
@@ -297,6 +298,12 @@ public class DefaultMQAdminExtTest {
     public void testWipeWritePermOfBroker() throws InterruptedException, RemotingCommandException, RemotingSendRequestException, RemotingTimeoutException, MQClientException, RemotingConnectException {
         int result = defaultMQAdminExt.wipeWritePermOfBroker("127.0.0.1:9876", "default-broker");
         assertThat(result).isEqualTo(6);
+    }
+
+    @Test
+    public void testAddWritePermOfBroker() throws InterruptedException, RemotingCommandException, RemotingSendRequestException, RemotingTimeoutException, MQClientException, RemotingConnectException {
+        int result = defaultMQAdminExt.addWritePermOfBroker("127.0.0.1:9876", "default-broker");
+        assertThat(result).isEqualTo(7);
     }
 
     @Test

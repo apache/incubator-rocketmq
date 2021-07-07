@@ -427,6 +427,14 @@ Before introducing the mqadmin management tool, the following points need to be 
   <td class=xl68 width=87 style='width:65pt'>Declare the BrokerName</td>
  </tr>
  <tr height=57 style='height:43.0pt'>
+   <td rowspan=3 height=137 class=xl69 width=191 style='border-bottom:1.0pt;
+   height:103.0pt;border-top:none;width:143pt'>addWritePerm</td>
+   <td rowspan=3 class=xl72 width=87 style='border-bottom:1.0pt
+   border-top:none;width:65pt'>Add write permissions for broker from nameServer</td>
+   <td class=xl67 width=87 style='width:65pt'>-b</td>
+   <td class=xl68 width=87 style='width:65pt'>Declare the BrokerName</td>
+  </tr>
+ <tr height=57 style='height:43.0pt'>
   <td height=57 class=xl67 width=87 style='height:43.0pt;width:65pt'>-n</td>
   <td class=xl68 width=87 style='width:65pt'>Service address used to specify nameServer and formatted as ip:port</td>
  </tr>

@@ -289,6 +289,11 @@ public class DefaultMQAdminExt extends ClientConfig implements MQAdminExt {
     }
 
     @Override
+    public int addWritePermOfBroker(String namesrvAddr, String brokerName) throws RemotingCommandException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQClientException {
+        return defaultMQAdminExtImpl.addWritePermOfBroker(namesrvAddr, brokerName);
+    }
+
+    @Override
     public void putKVConfig(String namespace, String key, String value) {
         defaultMQAdminExtImpl.putKVConfig(namespace, key, value);
     }

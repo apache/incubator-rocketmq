@@ -61,6 +61,7 @@ import org.apache.rocketmq.tools.command.message.QueryMsgByOffsetSubCommand;
 import org.apache.rocketmq.tools.command.message.QueryMsgByUniqueKeySubCommand;
 import org.apache.rocketmq.tools.command.message.QueryMsgTraceByIdSubCommand;
 import org.apache.rocketmq.tools.command.message.SendMessageCommand;
+import org.apache.rocketmq.tools.command.namesrv.AddWritePermSubCommand;
 import org.apache.rocketmq.tools.command.namesrv.DeleteKvConfigCommand;
 import org.apache.rocketmq.tools.command.namesrv.GetNamesrvConfigCommand;
 import org.apache.rocketmq.tools.command.namesrv.UpdateKvConfigCommand;
@@ -185,6 +186,7 @@ public class MQAdminStartup {
         initCommand(new DeleteKvConfigCommand());
 
         initCommand(new WipeWritePermSubCommand());
+        initCommand(new AddWritePermSubCommand());
         initCommand(new ResetOffsetByTimeCommand());
 
         initCommand(new UpdateOrderConfCommand());

@@ -134,6 +134,9 @@ public interface MQAdminExt extends MQAdmin {
     int wipeWritePermOfBroker(final String namesrvAddr, String brokerName) throws RemotingCommandException,
         RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQClientException;
 
+    int addWritePermOfBroker(final String namesrvAddr, String brokerName) throws RemotingCommandException,
+            RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException, MQClientException;
+
     void putKVConfig(final String namespace, final String key, final String value);
 
     String getKVConfig(final String namespace,

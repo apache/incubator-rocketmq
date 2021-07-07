@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.tools.command.namesrv;
 
-import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -25,16 +24,17 @@ import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
 
-public class WipeWritePermSubCommand implements SubCommand {
+import java.util.List;
 
+public class AddWritePermSubCommand implements SubCommand {
     @Override
     public String commandName() {
-        return "wipeWritePerm";
+        return "addWritePerm";
     }
 
     @Override
     public String commandDesc() {
-        return "Wipe write perm of broker in all name server you defined in the -n param";
+        return "Add write perm of broker in all name server you defined in the -n param";
     }
 
     @Override
@@ -48,9 +48,7 @@ public class WipeWritePermSubCommand implements SubCommand {
     @Override
     public void execute(CommandLine commandLine, Options options, RPCHook rpcHook) throws SubCommandException {
         DefaultMQAdminExt defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
-
         defaultMQAdminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
-
         try {
             defaultMQAdminExt.start();
             String brokerName = commandLine.getOptionValue('b').trim();
@@ -58,24 +56,23 @@ public class WipeWritePermSubCommand implements SubCommand {
             if (namesrvList != null) {
                 for (String namesrvAddr : namesrvList) {
                     try {
-                        int wipeTopicCount = defaultMQAdminExt.wipeWritePermOfBroker(namesrvAddr, brokerName);
-                        System.out.printf("wipe write perm of broker[%s] in name server[%s] OK, %d%n",
-                            brokerName,
-                            namesrvAddr,
-                            wipeTopicCount
+                        int addTopicCount = defaultMQAdminExt.addWritePermOfBroker(namesrvAddr, brokerName);
+                        System.out.printf("add write perm of broker[%s] in name server[%s] OK, %d%n",
+                                brokerName,
+                                namesrvAddr,
+                                addTopicCount
                         );
                     } catch (Exception e) {
-                        System.out.printf("wipe write perm of broker[%s] in name server[%s] Failed%n",
-                            brokerName,
-                            namesrvAddr
+                        System.out.printf("add write perm of broker[%s] in name server[%s] Failed%n",
+                                brokerName,
+                                namesrvAddr
                         );
-
                         e.printStackTrace();
                     }
                 }
             }
         } catch (Exception e) {
-            throw new SubCommandException(this.getClass().getSimpleName() + " command failed", e);
+            throw new SubCommandException(this.getClass().getSimpleName() + "command failed", e);
         } finally {
             defaultMQAdminExt.shutdown();
         }

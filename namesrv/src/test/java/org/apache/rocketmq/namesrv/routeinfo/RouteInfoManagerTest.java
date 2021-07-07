@@ -17,16 +17,22 @@
 package org.apache.rocketmq.namesrv.routeinfo;
 
 import io.netty.channel.Channel;
-import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.rocketmq.common.TopicConfig;
+import org.apache.rocketmq.common.constant.PermName;
 import org.apache.rocketmq.common.namesrv.RegisterBrokerResult;
 import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
+import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -74,14 +80,28 @@ public class RouteInfoManagerTest {
         topicConfigSerializeWrapper.setTopicConfigTable(topicConfigConcurrentHashMap);
         Channel channel = mock(Channel.class);
         RegisterBrokerResult registerBrokerResult = routeInfoManager.registerBroker("default-cluster", "127.0.0.1:10911", "default-broker", 1234, "127.0.0.1:1001",
-            topicConfigSerializeWrapper, new ArrayList<String>(), channel);
+                topicConfigSerializeWrapper, new ArrayList<String>(), channel);
         assertThat(registerBrokerResult).isNotNull();
     }
 
     @Test
-    public void testWipeWritePermOfBrokerByLock() {
-        int result = routeInfoManager.wipeWritePermOfBrokerByLock("default-broker");
-        assertThat(result).isEqualTo(0);
+    public void testWipeWritePermOfBrokerByLock() throws Exception {
+        List<QueueData> qdList = new ArrayList<>();
+        QueueData qd = new QueueData();
+        qd.setPerm(PermName.PERM_READ | PermName.PERM_WRITE);
+        qd.setBrokerName("broker-a");
+        qdList.add(qd);
+        HashMap<String, List<QueueData>> topicQueueTable = new HashMap<>();
+        topicQueueTable.put("topic-a", qdList);
+
+        Field filed = RouteInfoManager.class.getDeclaredField("topicQueueTable");
+        filed.setAccessible(true);
+        filed.set(routeInfoManager, topicQueueTable);
+
+        int addTopicCnt = routeInfoManager.wipeWritePermOfBrokerByLock("broker-a");
+        assertThat(addTopicCnt).isEqualTo(1);
+        assertThat(qd.getPerm()).isEqualTo(PermName.PERM_READ);
+
     }
 
     @Test
@@ -118,5 +138,25 @@ public class RouteInfoManagerTest {
     public void testGetHasUnitSubUnUnitTopicList() {
         byte[] topicList = routeInfoManager.getHasUnitSubUnUnitTopicList();
         assertThat(topicList).isNotNull();
+    }
+
+    @Test
+    public void testAddWritePermOfBrokerByLock() throws Exception {
+        List<QueueData> qdList = new ArrayList<>();
+        QueueData qd = new QueueData();
+        qd.setPerm(PermName.PERM_READ);
+        qd.setBrokerName("broker-a");
+        qdList.add(qd);
+        HashMap<String, List<QueueData>> topicQueueTable = new HashMap<>();
+        topicQueueTable.put("topic-a", qdList);
+
+        Field filed = RouteInfoManager.class.getDeclaredField("topicQueueTable");
+        filed.setAccessible(true);
+        filed.set(routeInfoManager, topicQueueTable);
+
+        int addTopicCnt = routeInfoManager.addWritePermOfBrokerByLock("broker-a");
+        assertThat(addTopicCnt).isEqualTo(1);
+        assertThat(qd.getPerm()).isEqualTo(PermName.PERM_READ | PermName.PERM_WRITE);
+
     }
 }
