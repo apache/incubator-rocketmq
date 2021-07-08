@@ -116,11 +116,6 @@ public class BrokerStartup {
             nettyServerConfig.setListenPort(10911);
             final MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
 
-            if (BrokerRole.SLAVE == messageStoreConfig.getBrokerRole()) {
-                int ratio = messageStoreConfig.getAccessMessageInMemoryMaxRatio() - 10;
-                messageStoreConfig.setAccessMessageInMemoryMaxRatio(ratio);
-            }
-
             if (commandLine.hasOption('c')) {
                 String file = commandLine.getOptionValue('c');
                 if (file != null) {
@@ -180,6 +175,10 @@ public class BrokerStartup {
 
             if (messageStoreConfig.isEnableDLegerCommitLog()) {
                 brokerConfig.setBrokerId(-1);
+            }
+
+            if (BrokerRole.SLAVE == messageStoreConfig.getBrokerRole()) {
+                messageStoreConfig.setAccessMessageInMemoryMaxRatio(messageStoreConfig.getAccessMessageInMemoryMaxRatio() - 10);
             }
 
             messageStoreConfig.setHaListenPort(nettyServerConfig.getListenPort() + 1);
