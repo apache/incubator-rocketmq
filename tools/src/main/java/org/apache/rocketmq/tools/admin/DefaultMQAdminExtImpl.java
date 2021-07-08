@@ -63,6 +63,7 @@ import org.apache.rocketmq.common.protocol.body.ClusterInfo;
 import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 import org.apache.rocketmq.common.protocol.body.ConsumeStatsList;
 import org.apache.rocketmq.common.protocol.body.ConsumerConnection;
+import org.apache.rocketmq.common.protocol.body.Connection;
 import org.apache.rocketmq.common.protocol.body.ConsumerRunningInfo;
 import org.apache.rocketmq.common.protocol.body.GroupList;
 import org.apache.rocketmq.common.protocol.body.KVTable;
@@ -86,6 +87,7 @@ import org.apache.rocketmq.remoting.exception.RemotingConnectException;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.exception.RemotingSendRequestException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
+import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.tools.admin.api.MessageTrack;
 import org.apache.rocketmq.tools.admin.api.TrackType;
 
@@ -497,7 +499,8 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
     @Override
     public Map<MessageQueue, Long> resetOffsetByTimestamp(String topic, String group, long timestamp, boolean isForce)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-        return resetOffsetByTimestamp(topic, group, timestamp, isForce, false);
+        boolean isJavaInstances = isAllInstancesInGroupJava(group);
+        return resetOffsetByTimestamp(topic, group, timestamp, isForce, !isJavaInstances);
     }
 
     @Override
@@ -1063,5 +1066,30 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
             MessageClientExt msgClient = (MessageClientExt) msg;
             return this.mqClientInstance.getMQClientAPIImpl().resumeCheckHalfMessage(RemotingUtil.socketAddress2String(msg.getStoreHost()), msgClient.getOffsetMsgId(), timeoutMillis);
         }
+    }
+
+    /**
+     * check the consumer group instance use java or not
+     * for now, only one scenario can judged right: all instances in the group use the same language
+     * if >= 2 languages used in group instances, it will return false
+     *
+     * good news is for common ways, the coder would use one language for the group
+     * @param group consumer group name
+     * @return true: all is java instances, false: not sure
+     */
+    public boolean isAllInstancesInGroupJava(String group) throws InterruptedException, RemotingException, MQClientException, MQBrokerException {
+        ConsumerConnection connection =  this.examineConsumerConnectionInfo(group);
+        if (connection.getConnectionSet().isEmpty()) {
+            return false;
+        }
+        boolean isJava = false;
+        for (Connection con : connection.getConnectionSet()) {
+            if (LanguageCode.JAVA == con.getLanguage()) {
+                //if >=2 languages used in instances, it can't be judged
+                isJava = true;
+                break;
+            }
+        }
+        return isJava;
     }
 }
