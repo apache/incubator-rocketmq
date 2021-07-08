@@ -357,7 +357,8 @@ public class DefaultMQAdminExt extends ClientConfig implements MQAdminExt {
     @Override
     public Map<MessageQueue, Long> resetOffsetByTimestamp(String topic, String group, long timestamp, boolean isForce)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
-        return resetOffsetByTimestamp(topic, group, timestamp, isForce, false);
+        boolean isJavaInstancesOnline = defaultMQAdminExtImpl.isAllInstancesInGroupJava(group);
+        return resetOffsetByTimestamp(topic, group, timestamp, isForce, !isJavaInstancesOnline);
     }
 
     public Map<MessageQueue, Long> resetOffsetByTimestamp(String topic, String group, long timestamp, boolean isForce,

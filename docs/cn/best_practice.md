@@ -253,7 +253,7 @@ DefaultMQProducer、TransactionMQProducer、DefaultMQPushConsumer、DefaultMQPul
 | clientIP                      | 本机IP  | 客户端本机IP地址，某些机器会发生无法识别客户端IP地址情况，需要应用在代码中强制指定 |
 | instanceName                  | DEFAULT | 客户端实例名称，客户端创建的多个Producer、Consumer实际是共用一个内部实例（这个实例包含网络连接、线程资源等） |
 | clientCallbackExecutorThreads | 4       | 通信层异步回调线程数                                         |
-| pollNameServerInteval         | 30000   | 轮询Name Server间隔时间，单位毫秒                            |
+| pollNameServerInterval        | 30000   | 轮询Name Server间隔时间，单位毫秒                            |
 | heartbeatBrokerInterval       | 30000   | 向Broker发送心跳间隔时间，单位毫秒                           |
 | persistConsumerOffsetInterval | 5000    | 持久化Consumer消费进度间隔时间，单位毫秒                     |
 
