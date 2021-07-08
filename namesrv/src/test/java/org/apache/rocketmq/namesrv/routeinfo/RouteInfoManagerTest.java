@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.rocketmq.common.TopicConfig;
 import org.apache.rocketmq.common.namesrv.RegisterBrokerResult;
+import org.apache.rocketmq.common.protocol.body.ClusterInfo;
 import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
+import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -76,6 +78,36 @@ public class RouteInfoManagerTest {
         RegisterBrokerResult registerBrokerResult = routeInfoManager.registerBroker("default-cluster", "127.0.0.1:10911", "default-broker", 1234, "127.0.0.1:1001",
             topicConfigSerializeWrapper, new ArrayList<String>(), channel);
         assertThat(registerBrokerResult).isNotNull();
+    }
+
+    @Test
+    public void testRegisterBrokersWithSameAddress() {
+        TopicConfigSerializeWrapper topicConfigSerializeWrapper = new TopicConfigSerializeWrapper();
+        ConcurrentHashMap<String, TopicConfig> topicConfigConcurrentHashMap = new ConcurrentHashMap<>();
+        TopicConfig topicConfig = new TopicConfig();
+        topicConfig.setWriteQueueNums(8);
+        topicConfig.setTopicName("unit-test");
+        topicConfig.setPerm(6);
+        topicConfig.setReadQueueNums(8);
+        topicConfig.setOrder(false);
+        topicConfigConcurrentHashMap.put("unit-test", topicConfig);
+        topicConfigSerializeWrapper.setTopicConfigTable(topicConfigConcurrentHashMap);
+        Channel channel = mock(Channel.class);
+        routeInfoManager.registerBroker("default-cluster", "127.0.0.1:10911", "default-broker",
+                1234, "127.0.0.1:1001",
+                topicConfigSerializeWrapper, new ArrayList<String>(), channel);
+
+        routeInfoManager.registerBroker("default-cluster", "127.0.0.1:10911", "default-broker-1",
+                1234, "127.0.0.1:1001",
+                topicConfigSerializeWrapper, new ArrayList<String>(), channel);
+
+        ClusterInfo clusterInfo = RemotingSerializable.decode(routeInfoManager.getAllClusterInfo(), ClusterInfo.class);
+
+        assertThat(clusterInfo.getClusterAddrTable().get("default-cluster").size()).isEqualTo(1);
+        assertThat(clusterInfo.getClusterAddrTable().get("default-cluster")).contains("default-broker-1");
+
+        assertThat(clusterInfo.getBrokerAddrTable().get("default-broker")).isNull();
+        assertThat(clusterInfo.getBrokerAddrTable().get("default-broker-1")).isNotNull();
     }
 
     @Test

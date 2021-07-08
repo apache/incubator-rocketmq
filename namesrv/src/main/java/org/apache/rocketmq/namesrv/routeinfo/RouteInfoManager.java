@@ -184,6 +184,8 @@ public class RouteInfoManager {
                         }
                     }
                 }
+
+                this.refreshClusterAndBrokerAddrTable(clusterName, brokerName, brokerId, brokerAddr);
             } finally {
                 this.lock.writeLock().unlock();
             }
@@ -192,6 +194,20 @@ public class RouteInfoManager {
         }
 
         return result;
+    }
+
+    private void refreshClusterAndBrokerAddrTable(String clusterName, String brokerName, Long brokerId, String brokerAddr) {
+        Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
+
+        Iterator<Entry<String, BrokerData>> it = this.brokerAddrTable.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String, BrokerData> item = it.next();
+            String brokerAddrFound = item.getValue().getBrokerAddrs().get(brokerId);
+            if (null != brokerAddrFound && brokerAddrFound.equals(brokerAddr) && !item.getKey().equals(brokerName)) {
+                brokerNames.remove(item.getKey());
+                it.remove();
+            }
+        }
     }
 
     public boolean isBrokerTopicConfigChanged(final String brokerAddr, final DataVersion dataVersion) {
