@@ -71,7 +71,6 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     private final NettyServerConfig nettyServerConfig;
 
     private final ExecutorService publicExecutor;
-    private final ChannelEventListener channelEventListener;
 
     private final Timer timer = new Timer("ServerHouseKeepingService", true);
     private DefaultEventExecutorGroup defaultEventExecutorGroup;
@@ -330,12 +329,6 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {
         this.invokeOnewayImpl(channel, request, timeoutMillis);
     }
-
-    @Override
-    public ChannelEventListener getChannelEventListener() {
-        return channelEventListener;
-    }
-
 
     @Override
     public ExecutorService getCallbackExecutor() {

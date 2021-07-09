@@ -92,7 +92,6 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
      * Invoke the callback methods in this executor when process response.
      */
     private ExecutorService callbackExecutor;
-    private final ChannelEventListener channelEventListener;
     private DefaultEventExecutorGroup defaultEventExecutorGroup;
 
     public NettyRemotingClient(final NettyClientConfig nettyClientConfig) {
@@ -579,12 +578,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     public List<String> getNameServerAddressList() {
         return this.namesrvAddrList.get();
     }
-
-    @Override
-    public ChannelEventListener getChannelEventListener() {
-        return channelEventListener;
-    }
-
+    
     @Override
     public ExecutorService getCallbackExecutor() {
         return callbackExecutor != null ? callbackExecutor : publicExecutor;

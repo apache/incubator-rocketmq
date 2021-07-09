@@ -86,7 +86,12 @@ public abstract class NettyRemotingAbstract {
      * Executor to feed netty events to user defined {@link ChannelEventListener}.
      */
     protected final NettyEventExecutor nettyEventExecutor = new NettyEventExecutor();
-
+    
+    /**
+     * Channel event listener, triggered when the netty events received.
+     */
+    protected ChannelEventListener channelEventListener;
+    
     /**
      * The default request processor to use in case there is no exact match in {@link #processorTable} per request code.
      */
@@ -123,7 +128,9 @@ public abstract class NettyRemotingAbstract {
      *
      * @return custom channel event listener if defined; null otherwise.
      */
-    public abstract ChannelEventListener getChannelEventListener();
+    public ChannelEventListener getChannelEventListener() {
+        return channelEventListener;
+    }
 
     /**
      * Put a netty event to the executor.
