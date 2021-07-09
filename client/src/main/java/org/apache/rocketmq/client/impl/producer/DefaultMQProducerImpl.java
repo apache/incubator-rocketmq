@@ -82,7 +82,6 @@ import org.apache.rocketmq.common.message.MessageId;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.message.MessageType;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
-import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.CheckTransactionStateRequestHeader;
 import org.apache.rocketmq.common.protocol.header.EndTransactionRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
@@ -629,20 +628,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
                         log.warn(msg.toString());
                         exception = e;
-                        switch (e.getResponseCode()) {
-                            case ResponseCode.TOPIC_NOT_EXIST:
-                            case ResponseCode.SERVICE_NOT_AVAILABLE:
-                            case ResponseCode.SYSTEM_ERROR:
-                            case ResponseCode.NO_PERMISSION:
-                            case ResponseCode.NO_BUYER_ID:
-                            case ResponseCode.NOT_IN_CURRENT_UNIT:
-                                continue;
-                            default:
-                                if (sendResult != null) {
-                                    return sendResult;
-                                }
+                        if (this.defaultMQProducer.getRetryResponseCodes().contains(e.getResponseCode())) {
+                            continue;
+                        } else {
+                            if (sendResult != null) {
+                                return sendResult;
+                            }
 
-                                throw e;
+                            throw e;
                         }
                     } catch (InterruptedException e) {
                         endTimestamp = System.currentTimeMillis();
