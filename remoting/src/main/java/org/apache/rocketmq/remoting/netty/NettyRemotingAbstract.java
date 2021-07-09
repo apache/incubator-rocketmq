@@ -288,11 +288,10 @@ public abstract class NettyRemotingAbstract {
         final int opaque = cmd.getOpaque();
         final ResponseFuture responseFuture = responseTable.get(opaque);
         if (responseFuture != null) {
-            responseFuture.setResponseCommand(cmd);
-
             responseTable.remove(opaque);
 
             if (responseFuture.getInvokeCallback() != null) {
+                responseFuture.setResponseCommand(cmd);
                 executeInvokeCallback(responseFuture);
             } else {
                 responseFuture.putResponse(cmd);
