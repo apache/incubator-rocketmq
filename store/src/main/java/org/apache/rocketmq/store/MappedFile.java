@@ -321,7 +321,7 @@ public class MappedFile extends ReferenceResource {
         int writePos = this.wrotePosition.get();
         int lastCommittedPosition = this.committedPosition.get();
 
-        if (writePos - lastCommittedPosition > commitLeastPages) {
+        if (writePos - lastCommittedPosition > commitLeastPages * OS_PAGE_SIZE) {
             try {
                 ByteBuffer byteBuffer = writeBuffer.slice();
                 byteBuffer.position(lastCommittedPosition);
