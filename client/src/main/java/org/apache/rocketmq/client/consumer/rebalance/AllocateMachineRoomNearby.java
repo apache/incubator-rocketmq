@@ -22,9 +22,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
-import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
-import org.apache.rocketmq.logging.InternalLogger;
 
 /**
  * An allocate strategy proxy for based on machine room nearside priority. An actual allocate strategy can be
@@ -34,8 +32,7 @@ import org.apache.rocketmq.logging.InternalLogger;
  * should only be allocated to those. Otherwise, those message queues can be shared along all consumers since there are
  * no alive consumer to monopolize them.
  */
-public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
-    private final InternalLogger log = ClientLogger.getLog();
+public class AllocateMachineRoomNearby extends AbstractAllocateMessageQueueStrategy {
 
     private final AllocateMessageQueueStrategy allocateMessageQueueStrategy;//actual allocate strategy
     private final MachineRoomResolver machineRoomResolver;
@@ -55,27 +52,8 @@ public class AllocateMachineRoomNearby implements AllocateMessageQueueStrategy {
     }
 
     @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
+    public List<MessageQueue> doAllocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
         List<String> cidAll) {
-        if (currentCID == null || currentCID.length() < 1) {
-            throw new IllegalArgumentException("currentCID is empty");
-        }
-        if (mqAll == null || mqAll.isEmpty()) {
-            throw new IllegalArgumentException("mqAll is null or mqAll empty");
-        }
-        if (cidAll == null || cidAll.isEmpty()) {
-            throw new IllegalArgumentException("cidAll is null or cidAll empty");
-        }
-
-        List<MessageQueue> result = new ArrayList<MessageQueue>();
-        if (!cidAll.contains(currentCID)) {
-            log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
-                consumerGroup,
-                currentCID,
-                cidAll);
-            return result;
-        }
-
         //group mq by machine room
         Map<String/*machine room */, List<MessageQueue>> mr2Mq = new TreeMap<String, List<MessageQueue>>();
         for (MessageQueue mq : mqAll) {
