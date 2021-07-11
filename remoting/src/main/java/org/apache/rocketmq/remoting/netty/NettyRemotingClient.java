@@ -30,6 +30,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -173,7 +174,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                     ChannelPipeline pipeline = ch.pipeline();
                     if (nettyClientConfig.isUseTLS()) {
                         if (null != sslContext) {
-                            pipeline.addFirst(defaultEventExecutorGroup, "sslHandler", sslContext.newHandler(ch.alloc()));
+                            SslHandler sslHandler = sslContext.newHandler(ch.alloc());
+                            TlsHelper.configureEnabledTlsProtocols(sslHandler);
+                            pipeline.addFirst(defaultEventExecutorGroup, "sslHandler", sslHandler);
                             log.info("Prepend SSL handler");
                         } else {
                             log.warn("Connections are insecure as SSLContext is null!");

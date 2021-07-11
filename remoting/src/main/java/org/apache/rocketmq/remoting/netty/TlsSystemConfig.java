@@ -39,6 +39,7 @@ public class TlsSystemConfig {
     public static final String TLS_CLIENT_AUTHSERVER = "tls.client.authServer";
     public static final String TLS_CLIENT_TRUSTCERTPATH = "tls.client.trustCertPath";
 
+    public static final String TLS_PROTOCOLS_ENABLED = "tls.protocols.enabled";
 
     /**
      * To determine whether use SSL in client-side, include SDK client and BrokerOuterAPI
@@ -80,6 +81,13 @@ public class TlsSystemConfig {
      * The store path of trusted certificates for verifying the client endpoint's certificate
      */
     public static String tlsServerTrustCertPath = System.getProperty(TLS_SERVER_TRUSTCERTPATH, null);
+
+    /**
+     * TLS protocol version list supported, in form of CSV.
+     * Example setting is: -Dtls.protocols.enabled=TLSv1,TLSv1.1,TLSv1.2
+     * If unset, protocols enabled are up to JVM defaults.
+     */
+    public static String tlsProtocolsEnabled = System.getProperty(TLS_PROTOCOLS_ENABLED, null);
 
     /**
      * The store path of client-side private key

@@ -21,6 +21,7 @@ import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
@@ -83,7 +84,6 @@ public class TlsHelper {
         }
     };
 
-
     public static void registerDecryptionStrategy(final DecryptionStrategy decryptionStrategy) {
         TlsHelper.decryptionStrategy = decryptionStrategy;
     }
@@ -111,7 +111,6 @@ public class TlsHelper {
                     .build();
             } else {
                 SslContextBuilder sslContextBuilder = SslContextBuilder.forClient().sslProvider(SslProvider.JDK);
-
 
                 if (!tlsClientAuthServer) {
                     sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
@@ -230,5 +229,23 @@ public class TlsHelper {
      */
     private static boolean isNullOrEmpty(String s) {
         return s == null || s.isEmpty();
+    }
+
+    /**
+     * Configure TLS protocols enabled according to Java option or configuration file. Refer to
+     * {@link TlsSystemConfig#tlsProtocolsEnabled} for how-to-configure.
+     *
+     * @param sslHandler TLS handler to configure.
+     */
+    public static void configureEnabledTlsProtocols(SslHandler sslHandler) {
+        if (null == sslHandler) {
+            return;
+        }
+
+        if (null != TlsSystemConfig.tlsProtocolsEnabled
+            && !TlsSystemConfig.tlsProtocolsEnabled.isEmpty()) {
+            String[] protocols = TlsSystemConfig.tlsProtocolsEnabled.split(",");
+            sslHandler.engine().setEnabledProtocols(protocols);
+        }
     }
 }
