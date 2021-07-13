@@ -17,26 +17,11 @@
 
 package org.apache.rocketmq.example.benchmark;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.LocalTransactionState;
 import org.apache.rocketmq.client.producer.SendResult;
@@ -47,6 +32,24 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.srvutil.ServerUtil;
+
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class TransactionProducer {
     private static final long START_TIME = System.currentTimeMillis();
@@ -74,11 +77,12 @@ public class TransactionProducer {
 
         final StatsBenchmarkTProducer statsBenchmark = new StatsBenchmarkTProducer();
 
-        final Timer timer = new Timer("BenchmarkTimerThread", true);
+        ScheduledExecutorService executorService = new ScheduledThreadPoolExecutor(1,
+                new BasicThreadFactory.Builder().namingPattern("BenchmarkTimerThread-%d").daemon(true).build());
 
         final LinkedList<Snapshot> snapshotList = new LinkedList<>();
 
-        timer.scheduleAtFixedRate(new TimerTask() {
+        executorService.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 snapshotList.addLast(statsBenchmark.createSnapshot());
@@ -86,9 +90,9 @@ public class TransactionProducer {
                     snapshotList.removeFirst();
                 }
             }
-        }, 1000, 1000);
+        }, 1000, 1000, TimeUnit.MILLISECONDS);
 
-        timer.scheduleAtFixedRate(new TimerTask() {
+        executorService.scheduleAtFixedRate(new TimerTask() {
             private void printStats() {
                 if (snapshotList.size() >= 10) {
                     Snapshot begin = snapshotList.getFirst();
@@ -120,7 +124,7 @@ public class TransactionProducer {
                     e.printStackTrace();
                 }
             }
-        }, 10000, 10000);
+        }, 10000, 10000, TimeUnit.MILLISECONDS);
 
         final TransactionListener transactionCheckListener = new TransactionListenerImpl(statsBenchmark, config);
         final TransactionMQProducer producer =

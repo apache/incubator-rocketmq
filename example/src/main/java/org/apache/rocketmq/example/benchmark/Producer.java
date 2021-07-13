@@ -16,31 +16,33 @@
  */
 package org.apache.rocketmq.example.benchmark;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.srvutil.ServerUtil;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Random;
+import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Producer {
 
@@ -73,7 +75,8 @@ public class Producer {
 
         final StatsBenchmarkProducer statsBenchmark = new StatsBenchmarkProducer();
 
-        final Timer timer = new Timer("BenchmarkTimerThread", true);
+        ScheduledExecutorService executorService = new ScheduledThreadPoolExecutor(1,
+                new BasicThreadFactory.Builder().namingPattern("BenchmarkTimerThread-%d").daemon(true).build());
 
         final LinkedList<Long[]> snapshotList = new LinkedList<Long[]>();
 
@@ -87,7 +90,7 @@ public class Producer {
             }
         }
 
-        timer.scheduleAtFixedRate(new TimerTask() {
+        executorService.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 snapshotList.addLast(statsBenchmark.createSnapshot());
@@ -95,9 +98,9 @@ public class Producer {
                     snapshotList.removeFirst();
                 }
             }
-        }, 1000, 1000);
+        }, 1000, 1000, TimeUnit.MILLISECONDS);
 
-        timer.scheduleAtFixedRate(new TimerTask() {
+        executorService.scheduleAtFixedRate(new TimerTask() {
             private void printStats() {
                 if (snapshotList.size() >= 10) {
                     doPrintStats(snapshotList,  statsBenchmark, false);
@@ -112,7 +115,7 @@ public class Producer {
                     e.printStackTrace();
                 }
             }
-        }, 10000, 10000);
+        }, 10000, 10000, TimeUnit.MILLISECONDS);
 
         RPCHook rpcHook = aclEnable ? AclClient.getAclRPCHook() : null;
         final DefaultMQProducer producer = new DefaultMQProducer("benchmark_producer", rpcHook, msgTraceEnable, null);
@@ -224,7 +227,12 @@ public class Producer {
         try {
             sendThreadPool.shutdown();
             sendThreadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
-            timer.cancel();
+            executorService.shutdown();
+            try {
+                executorService.awaitTermination(5000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+            }
+
             if (snapshotList.size() > 1) {
                 doPrintStats(snapshotList, statsBenchmark, true);
             } else {
