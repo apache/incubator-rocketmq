@@ -277,18 +277,26 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         msgInner.setBody(body);
         msgInner.setFlag(requestHeader.getFlag());
-        MessageAccessor.setProperties(msgInner, MessageDecoder.string2messageProperties(requestHeader.getProperties()));
-        msgInner.setPropertiesString(requestHeader.getProperties());
+        Map<String, String> origProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        MessageAccessor.setProperties(msgInner, origProps);
         msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
         msgInner.setBornHost(ctx.channel().remoteAddress());
         msgInner.setStoreHost(this.getStoreHost());
         msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
         String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_CLUSTER, clusterName);
-        msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
+        if (origProps.containsKey(MessageConst.PROPERTY_WAIT_STORE_MSG_OK)) {
+            // There is no need to store "WAIT=true", remove it from propertiesString to save 9 bytes for each message.
+            // It works for most case. In some cases msgInner.setPropertiesString invoked later and replace it.
+            String waitStoreMsgOKValue = origProps.remove(MessageConst.PROPERTY_WAIT_STORE_MSG_OK);
+            msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
+            // Reput to properties, since msgInner.isWaitStoreMsgOK() will be invoked later
+            origProps.put(MessageConst.PROPERTY_WAIT_STORE_MSG_OK, waitStoreMsgOKValue);
+        } else {
+            msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
+        }
 
         CompletableFuture<PutMessageResult> putMessageResult = null;
-        Map<String, String> origProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
         String transFlag = origProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         if (transFlag != null && Boolean.parseBoolean(transFlag)) {
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
