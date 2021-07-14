@@ -80,6 +80,10 @@ public class RequestCode {
 
     public static final int GET_BROKER_CLUSTER_ACL_CONFIG = 54;
 
+    public static final int QUERY_CONSUMER_STAGE_OFFSET = 55;
+
+    public static final int UPDATE_CONSUMER_STAGE_OFFSET = 56;
+
     public static final int PUT_KV_CONFIG = 100;
 
     public static final int GET_KV_CONFIG = 101;

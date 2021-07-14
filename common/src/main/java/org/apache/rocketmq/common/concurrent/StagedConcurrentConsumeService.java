@@ -14,30 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.common.message;
+package org.apache.rocketmq.common.concurrent;
 
-public class MessageClientExt extends MessageExt {
+import org.apache.rocketmq.common.ServiceThread;
 
-    public String getOffsetMsgId() {
-        return super.getMsgId();
-    }
+public class StagedConcurrentConsumeService extends ServiceThread {
 
-    public void setOffsetMsgId(String offsetMsgId) {
-        super.setMsgId(offsetMsgId);
+    private long joinTime = 1;
+
+    private final PriorityConcurrentEngine engine;
+
+    public StagedConcurrentConsumeService(PriorityConcurrentEngine engine) {
+        this.engine = engine;
     }
 
     @Override
-    public String getMsgId() {
-        String uniqID = MessageClientIDSetter.getUniqID(this);
-        if (uniqID == null) {
-            return this.getOffsetMsgId();
-        } else {
-            return uniqID;
+    public void run() {
+        while (!this.isStopped()) {
+            engine.invokeAllNow();
         }
     }
 
-    @Override public void setMsgId(String msgId) {
-        //DO NOTHING
-        //MessageClientIDSetter.setUniqID(this);
+    @Override
+    public String getServiceName() {
+        return StagedConcurrentConsumeService.class.getSimpleName();
+    }
+
+    @Override
+    public long getJointime() {
+        return joinTime;
+    }
+
+    public void setJoinTime(long joinTime) {
+        if (joinTime > 0) {
+            this.joinTime = joinTime;
+        }
     }
 }

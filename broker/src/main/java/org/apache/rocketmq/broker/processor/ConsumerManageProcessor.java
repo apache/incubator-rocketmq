@@ -18,9 +18,14 @@ package org.apache.rocketmq.broker.processor;
 
 import io.netty.channel.ChannelHandlerContext;
 import java.util.List;
+import java.util.Map;
+import org.apache.commons.collections.MapUtils;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.client.ConsumerGroupInfo;
 import org.apache.rocketmq.common.constant.LoggerName;
+import org.apache.rocketmq.common.protocol.header.QueryConsumerStageOffsetRequestHeader;
+import org.apache.rocketmq.common.protocol.header.QueryConsumerStageOffsetResponseHeader;
+import org.apache.rocketmq.common.protocol.header.UpdateConsumerStageOffsetRequestHeader;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
@@ -57,6 +62,10 @@ public class ConsumerManageProcessor extends AsyncNettyRequestProcessor implemen
                 return this.updateConsumerOffset(ctx, request);
             case RequestCode.QUERY_CONSUMER_OFFSET:
                 return this.queryConsumerOffset(ctx, request);
+            case RequestCode.UPDATE_CONSUMER_STAGE_OFFSET:
+                return this.updateConsumerStageOffset(ctx, request);
+            case RequestCode.QUERY_CONSUMER_STAGE_OFFSET:
+                return this.queryConsumerStageOffset(ctx, request);
             default:
                 break;
         }
@@ -149,6 +158,45 @@ public class ConsumerManageProcessor extends AsyncNettyRequestProcessor implemen
                 response.setRemark("Not found, V3_0_6_SNAPSHOT maybe this group consumer boot first");
             }
         }
+
+        return response;
+    }
+
+    private RemotingCommand updateConsumerStageOffset(ChannelHandlerContext ctx, RemotingCommand request)
+        throws RemotingCommandException {
+        final RemotingCommand response =
+            RemotingCommand.createResponseCommand(UpdateConsumerOffsetResponseHeader.class);
+        final UpdateConsumerStageOffsetRequestHeader requestHeader =
+            (UpdateConsumerStageOffsetRequestHeader) request
+                .decodeCommandCustomHeader(UpdateConsumerStageOffsetRequestHeader.class);
+        this.brokerController.getConsumerStageOffsetManager().commitStageOffset(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getConsumerGroup(),
+            requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getStrategyId(), requestHeader.getGroupId(), requestHeader.getCommitStageOffset());
+        response.setCode(ResponseCode.SUCCESS);
+        response.setRemark(null);
+        return response;
+    }
+
+    private RemotingCommand queryConsumerStageOffset(ChannelHandlerContext ctx, RemotingCommand request)
+        throws RemotingCommandException {
+        final RemotingCommand response =
+            RemotingCommand.createResponseCommand(QueryConsumerStageOffsetResponseHeader.class);
+        final QueryConsumerStageOffsetResponseHeader responseHeader =
+            (QueryConsumerStageOffsetResponseHeader) response.readCustomHeader();
+        final QueryConsumerStageOffsetRequestHeader requestHeader =
+            (QueryConsumerStageOffsetRequestHeader) request
+                .decodeCommandCustomHeader(QueryConsumerStageOffsetRequestHeader.class);
+
+        Map<String, Map<String, Integer>> offset =
+            this.brokerController.getConsumerStageOffsetManager().queryStageOffset(
+                requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
+
+        if (MapUtils.isNotEmpty(offset)) {
+            responseHeader.setStageOffset(offset);
+            response.setCode(ResponseCode.SUCCESS);
+        } else {
+            response.setCode(ResponseCode.QUERY_NOT_FOUND);
+        }
+        response.setRemark(null);
 
         return response;
     }

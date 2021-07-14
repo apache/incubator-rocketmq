@@ -52,6 +52,7 @@ import org.apache.rocketmq.broker.longpolling.PullRequestHoldService;
 import org.apache.rocketmq.broker.mqtrace.ConsumeMessageHook;
 import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
 import org.apache.rocketmq.broker.offset.ConsumerOffsetManager;
+import org.apache.rocketmq.broker.offset.ConsumerStageOffsetManager;
 import org.apache.rocketmq.broker.out.BrokerOuterAPI;
 import org.apache.rocketmq.broker.plugin.MessageStoreFactory;
 import org.apache.rocketmq.broker.plugin.MessageStorePluginContext;
@@ -116,6 +117,7 @@ public class BrokerController {
     private final NettyClientConfig nettyClientConfig;
     private final MessageStoreConfig messageStoreConfig;
     private final ConsumerOffsetManager consumerOffsetManager;
+    private final ConsumerStageOffsetManager consumerStageOffsetManager;
     private final ConsumerManager consumerManager;
     private final ConsumerFilterManager consumerFilterManager;
     private final ProducerManager producerManager;
@@ -179,6 +181,7 @@ public class BrokerController {
         this.nettyClientConfig = nettyClientConfig;
         this.messageStoreConfig = messageStoreConfig;
         this.consumerOffsetManager = new ConsumerOffsetManager(this);
+        this.consumerStageOffsetManager=new ConsumerStageOffsetManager(this);
         this.topicConfigManager = new TopicConfigManager(this);
         this.pullMessageProcessor = new PullMessageProcessor(this);
         this.pullRequestHoldService = new PullRequestHoldService(this);
@@ -237,6 +240,8 @@ public class BrokerController {
         result = result && this.consumerOffsetManager.load();
         result = result && this.subscriptionGroupManager.load();
         result = result && this.consumerFilterManager.load();
+        //It doesn’t matter if the load fails, the file may not exist
+        this.consumerStageOffsetManager.load();
 
         if (result) {
             try {
@@ -349,6 +354,17 @@ public class BrokerController {
                 public void run() {
                     try {
                         BrokerController.this.consumerOffsetManager.persist();
+                    } catch (Throwable e) {
+                        log.error("schedule persist consumerOffset error.", e);
+                    }
+                }
+            }, 1000 * 10, this.brokerConfig.getFlushConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
+
+            this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        BrokerController.this.consumerStageOffsetManager.persist();
                     } catch (Throwable e) {
                         log.error("schedule persist consumerOffset error.", e);
                     }
@@ -717,6 +733,10 @@ public class BrokerController {
         return consumerOffsetManager;
     }
 
+    public ConsumerStageOffsetManager getConsumerStageOffsetManager() {
+        return consumerStageOffsetManager;
+    }
+
     public MessageStoreConfig getMessageStoreConfig() {
         return messageStoreConfig;
     }
@@ -799,6 +819,10 @@ public class BrokerController {
         }
 
         this.consumerOffsetManager.persist();
+
+        if (this.consumerStageOffsetManager != null) {
+            this.consumerStageOffsetManager.persist();
+        }
 
         if (this.filterServerManager != null) {
             this.filterServerManager.shutdown();

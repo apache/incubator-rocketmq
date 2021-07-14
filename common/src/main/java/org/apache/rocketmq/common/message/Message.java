@@ -206,6 +206,42 @@ public class Message implements Serializable {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Message)) {
+            return false;
+        }
+
+        Message message = (Message) o;
+
+        if (flag != message.flag) {
+            return false;
+        }
+        if (!topic.equals(message.topic)) {
+            return false;
+        }
+        if (!properties.equals(message.properties)) {
+            return false;
+        }
+        if (!Arrays.equals(body, message.body)) {
+            return false;
+        }
+        return transactionId.equals(message.transactionId);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = topic.hashCode();
+        result = 31 * result + flag;
+        result = 31 * result + properties.hashCode();
+        result = 31 * result + Arrays.hashCode(body);
+        result = 31 * result + transactionId.hashCode();
+        return result;
+    }
+
+    @Override
     public String toString() {
         return "Message{" +
             "topic='" + topic + '\'' +

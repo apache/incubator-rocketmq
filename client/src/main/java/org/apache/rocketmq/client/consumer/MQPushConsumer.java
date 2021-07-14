@@ -19,6 +19,7 @@ package org.apache.rocketmq.client.consumer;
 import org.apache.rocketmq.client.consumer.listener.MessageListener;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerStagedConcurrently;
 import org.apache.rocketmq.client.exception.MQClientException;
 
 /**
@@ -44,6 +45,8 @@ public interface MQPushConsumer extends MQConsumer {
     void registerMessageListener(final MessageListenerConcurrently messageListener);
 
     void registerMessageListener(final MessageListenerOrderly messageListener);
+
+    void registerMessageListener(final MessageListenerStagedConcurrently messageListener);
 
     /**
      * Subscribe some topic

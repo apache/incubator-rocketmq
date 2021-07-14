@@ -39,6 +39,10 @@ public class BrokerPathConfigHelper {
         return rootDir + File.separator + "config" + File.separator + "consumerOffset.json";
     }
 
+    public static String getConsumerStageOffsetPath(final String rootDir) {
+        return rootDir + File.separator + "config" + File.separator + "consumerStageOffset.json";
+    }
+
     public static String getSubscriptionGroupPath(final String rootDir) {
         return rootDir + File.separator + "config" + File.separator + "subscriptionGroup.json";
     }

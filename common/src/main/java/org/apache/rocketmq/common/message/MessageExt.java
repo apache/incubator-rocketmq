@@ -193,9 +193,13 @@ public class MessageExt extends Message {
         this.sysFlag = sysFlag;
     }
 
-    public void setStoreHostAddressV6Flag() { this.sysFlag = this.sysFlag | MessageSysFlag.STOREHOSTADDRESS_V6_FLAG; }
+    public void setStoreHostAddressV6Flag() {
+        this.sysFlag = this.sysFlag | MessageSysFlag.STOREHOSTADDRESS_V6_FLAG;
+    }
 
-    public void setBornHostV6Flag() { this.sysFlag = this.sysFlag | MessageSysFlag.BORNHOST_V6_FLAG; }
+    public void setBornHostV6Flag() {
+        this.sysFlag = this.sysFlag | MessageSysFlag.BORNHOST_V6_FLAG;
+    }
 
     public int getBodyCRC() {
         return bodyCRC;
@@ -243,6 +247,82 @@ public class MessageExt extends Message {
 
     public void setPreparedTransactionOffset(long preparedTransactionOffset) {
         this.preparedTransactionOffset = preparedTransactionOffset;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof MessageExt)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+
+        MessageExt ext = (MessageExt) o;
+
+        if (queueId != ext.queueId) {
+            return false;
+        }
+        if (storeSize != ext.storeSize) {
+            return false;
+        }
+        if (queueOffset != ext.queueOffset) {
+            return false;
+        }
+        if (sysFlag != ext.sysFlag) {
+            return false;
+        }
+        if (bornTimestamp != ext.bornTimestamp) {
+            return false;
+        }
+        if (storeTimestamp != ext.storeTimestamp) {
+            return false;
+        }
+        if (commitLogOffset != ext.commitLogOffset) {
+            return false;
+        }
+        if (bodyCRC != ext.bodyCRC) {
+            return false;
+        }
+        if (reconsumeTimes != ext.reconsumeTimes) {
+            return false;
+        }
+        if (preparedTransactionOffset != ext.preparedTransactionOffset) {
+            return false;
+        }
+        if (!brokerName.equals(ext.brokerName)) {
+            return false;
+        }
+        if (!bornHost.equals(ext.bornHost)) {
+            return false;
+        }
+        if (!storeHost.equals(ext.storeHost)) {
+            return false;
+        }
+        return msgId.equals(ext.msgId);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + brokerName.hashCode();
+        result = 31 * result + queueId;
+        result = 31 * result + storeSize;
+        result = 31 * result + (int) (queueOffset ^ (queueOffset >>> 32));
+        result = 31 * result + sysFlag;
+        result = 31 * result + (int) (bornTimestamp ^ (bornTimestamp >>> 32));
+        result = 31 * result + bornHost.hashCode();
+        result = 31 * result + (int) (storeTimestamp ^ (storeTimestamp >>> 32));
+        result = 31 * result + storeHost.hashCode();
+        result = 31 * result + msgId.hashCode();
+        result = 31 * result + (int) (commitLogOffset ^ (commitLogOffset >>> 32));
+        result = 31 * result + bodyCRC;
+        result = 31 * result + reconsumeTimes;
+        result = 31 * result + (int) (preparedTransactionOffset ^ (preparedTransactionOffset >>> 32));
+        return result;
     }
 
     @Override

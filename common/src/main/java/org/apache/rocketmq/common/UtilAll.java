@@ -29,16 +29,20 @@ import java.net.NetworkInterface;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.CRC32;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.InetAddressValidator;
 import org.apache.rocketmq.common.constant.LoggerName;
@@ -205,7 +209,6 @@ public class UtilAll {
             return -1;
         }
 
-
         try {
             File file = new File(path);
 
@@ -213,7 +216,6 @@ public class UtilAll {
                 log.error("Error when measuring disk space usage, file doesn't exist on this path: {}", path);
                 return -1;
             }
-
 
             long totalSpace = file.getTotalSpace();
 
@@ -461,7 +463,7 @@ public class UtilAll {
         if (ip.length != 4) {
             throw new RuntimeException("illegal ipv4 bytes");
         }
-    
+
         InetAddressValidator validator = InetAddressValidator.getInstance();
         return validator.isValidInet4Address(ipToIPv4Str(ip));
     }
@@ -583,5 +585,38 @@ public class UtilAll {
 
         String[] addrArray = str.split(splitor);
         return Arrays.asList(addrArray);
+    }
+
+    @SafeVarargs
+    public static <E> List<E> newArrayList(E... elements) {
+        if (null == elements || elements.length == 0) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(Arrays.asList(elements));
+    }
+
+    public static <T> List<T> newArrayList(Iterable<T> elements) {
+        List<T> list = new ArrayList<>();
+        if (null == elements) {
+            return list;
+        }
+        for (T element : elements) {
+            list.add(element);
+        }
+        return list;
+    }
+
+    public static <T> List<List<T>> partition(List<T> list, int size) {
+        List<List<T>> lists = new ArrayList<>();
+        if (CollectionUtils.isEmpty(list)) {
+            return lists;
+        }
+        int index = 0;
+        int maxSize = list.size();
+        while (index < maxSize) {
+            lists.add(list.subList(index, Math.min(index + size, maxSize)));
+            index = index + size;
+        }
+        return lists;
     }
 }

@@ -14,30 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.common.message;
+package org.apache.rocketmq.common.concurrent;
 
-public class MessageClientExt extends MessageExt {
-
-    public String getOffsetMsgId() {
-        return super.getMsgId();
-    }
-
-    public void setOffsetMsgId(String offsetMsgId) {
-        super.setMsgId(offsetMsgId);
-    }
-
-    @Override
-    public String getMsgId() {
-        String uniqID = MessageClientIDSetter.getUniqID(this);
-        if (uniqID == null) {
-            return this.getOffsetMsgId();
-        } else {
-            return uniqID;
-        }
-    }
-
-    @Override public void setMsgId(String msgId) {
-        //DO NOTHING
-        //MessageClientIDSetter.setUniqID(this);
-    }
+@FunctionalInterface
+public interface Callback<T> {
+    void call(T response);
 }

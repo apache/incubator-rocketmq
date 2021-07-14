@@ -14,30 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.common.message;
+package org.apache.rocketmq.common.concurrent;
 
-public class MessageClientExt extends MessageExt {
+import java.util.function.Supplier;
 
-    public String getOffsetMsgId() {
-        return super.getMsgId();
-    }
+/**
+ * Make up for the pain point of the original {@link Supplier} without task key
+ */
+public interface KeyedSupplier<K, V> extends Supplier<V> {
 
-    public void setOffsetMsgId(String offsetMsgId) {
-        super.setMsgId(offsetMsgId);
-    }
-
-    @Override
-    public String getMsgId() {
-        String uniqID = MessageClientIDSetter.getUniqID(this);
-        if (uniqID == null) {
-            return this.getOffsetMsgId();
-        } else {
-            return uniqID;
-        }
-    }
-
-    @Override public void setMsgId(String msgId) {
-        //DO NOTHING
-        //MessageClientIDSetter.setUniqID(this);
-    }
+    /**
+     * task key
+     *
+     * @return key
+     */
+    K key();
 }

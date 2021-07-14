@@ -37,6 +37,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.common.constant.LoggerName;
@@ -427,6 +428,20 @@ public class MixAll {
             boolean updated = target.compareAndSet(prev, value);
             if (updated)
                 return true;
+
+            prev = target.get();
+        }
+
+        return false;
+    }
+
+    public static boolean compareAndIncreaseOnly(final AtomicInteger target, final int value) {
+        int prev = target.get();
+        while (value > prev) {
+            boolean updated = target.compareAndSet(prev, value);
+            if (updated) {
+                return true;
+            }
 
             prev = target.get();
         }

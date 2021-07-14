@@ -280,6 +280,31 @@ public class ProcessQueue {
         return -1;
     }
 
+    public long commitMessages(List<MessageExt> msgs) {
+        try {
+            this.treeMapLock.writeLock().lockInterruptibly();
+            try {
+                Long offset = this.consumingMsgOrderlyTreeMap.lastKey();
+                msgCount.addAndGet(0 - msgs.size());
+                for (MessageExt msg : this.consumingMsgOrderlyTreeMap.values()) {
+                    msgSize.addAndGet(0 - msg.getBody().length);
+                }
+                for (MessageExt msg : msgs) {
+                    this.consumingMsgOrderlyTreeMap.remove(msg.getQueueOffset());
+                }
+                if (offset != null) {
+                    return offset + 1;
+                }
+            } finally {
+                this.treeMapLock.writeLock().unlock();
+            }
+        } catch (InterruptedException e) {
+            log.error("commit exception", e);
+        }
+
+        return -1;
+    }
+
     public void makeMessageToConsumeAgain(List<MessageExt> msgs) {
         try {
             this.treeMapLock.writeLock().lockInterruptibly();

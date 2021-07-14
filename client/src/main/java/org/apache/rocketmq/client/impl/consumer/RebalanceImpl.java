@@ -418,8 +418,9 @@ public abstract class RebalanceImpl {
     public abstract void removeDirtyOffset(final MessageQueue mq);
 
     /**
-     * When the network is unstable, using this interface may return wrong offset.
-     * It is recommended to use computePullFromWhereWithException instead.
+     * When the network is unstable, using this interface may return wrong offset. It is recommended to use
+     * computePullFromWhereWithException instead.
+     *
      * @param mq
      * @return offset
      */
@@ -446,6 +447,10 @@ public abstract class RebalanceImpl {
 
     public ConcurrentMap<String, Set<MessageQueue>> getTopicSubscribeInfoTable() {
         return topicSubscribeInfoTable;
+    }
+
+    public Set<MessageQueue> getTopicSubscribeInfo(String topic) {
+        return topicSubscribeInfoTable.get(topic);
     }
 
     public String getConsumerGroup() {
