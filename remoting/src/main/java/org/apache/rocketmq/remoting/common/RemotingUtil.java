@@ -165,6 +165,10 @@ public class RemotingUtil {
         return sb.toString();
     }
 
+    public static String convert2IpString(final String addr) {
+        return socketAddress2String(string2SocketAddress(addr));
+    }
+
     private static boolean isBridge(NetworkInterface networkInterface) {
         try {
             if (isLinuxPlatform()) {
