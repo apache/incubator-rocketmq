@@ -33,6 +33,7 @@ public class Producer {
          * Instantiate with a producer group name.
          */
         DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
+        producer.setNamesrvAddr("127.0.0.1:9876");
 
         /*
          * Specify name server addresses.
@@ -106,6 +107,9 @@ public class Producer {
                 Thread.sleep(1000);
             }
         }
+
+
+        Thread.sleep(10 * 60 * 1000);
 
         /*
          * Shut down once the producer instance is not longer in use.

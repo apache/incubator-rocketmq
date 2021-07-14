@@ -49,7 +49,7 @@ import org.apache.rocketmq.common.admin.RollbackStats;
 import org.apache.rocketmq.common.admin.TopicOffset;
 import org.apache.rocketmq.common.admin.TopicStatsTable;
 import org.apache.rocketmq.common.help.FAQUrl;
-import org.apache.rocketmq.common.protocol.body.ClusterAclVersionInfo;
+import org.apache.rocketmq.common.protocol.body.*;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageClientExt;
 import org.apache.rocketmq.common.message.MessageConst;
@@ -58,20 +58,6 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.namesrv.NamesrvUtil;
 import org.apache.rocketmq.common.protocol.ResponseCode;
-import org.apache.rocketmq.common.protocol.body.BrokerStatsData;
-import org.apache.rocketmq.common.protocol.body.ClusterInfo;
-import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
-import org.apache.rocketmq.common.protocol.body.ConsumeStatsList;
-import org.apache.rocketmq.common.protocol.body.ConsumerConnection;
-import org.apache.rocketmq.common.protocol.body.ConsumerRunningInfo;
-import org.apache.rocketmq.common.protocol.body.GroupList;
-import org.apache.rocketmq.common.protocol.body.KVTable;
-import org.apache.rocketmq.common.protocol.body.ProducerConnection;
-import org.apache.rocketmq.common.protocol.body.QueryConsumeQueueResponseBody;
-import org.apache.rocketmq.common.protocol.body.QueueTimeSpan;
-import org.apache.rocketmq.common.protocol.body.SubscriptionGroupWrapper;
-import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
-import org.apache.rocketmq.common.protocol.body.TopicList;
 import org.apache.rocketmq.common.protocol.header.UpdateConsumerOffsetRequestHeader;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.common.protocol.route.BrokerData;
@@ -365,6 +351,21 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
 
         if (result.getConnectionSet().isEmpty()) {
             log.warn("the producer group not online. brokerAddr={}, group={}", addr, producerGroup);
+            throw new MQClientException("Not found the producer group connection", null);
+        }
+
+        return result;
+    }
+
+
+    @Override
+    public ProducerConnectionMap examineAllProducerConnectionInfo(String brokerAddr)
+            throws RemotingException, MQClientException, InterruptedException, MQBrokerException {
+
+        ProducerConnectionMap result = this.mqClientInstance.getMQClientAPIImpl().getAllProducerConnectionList(brokerAddr, timeoutMillis);
+
+        if (result.getConnectionMap().isEmpty()) {
+            log.warn("the producer group not online. brokerAddr={}, group={}", brokerAddr);
             throw new MQClientException("Not found the producer group connection", null);
         }
 

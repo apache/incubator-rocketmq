@@ -97,6 +97,7 @@ public class RequestCode {
     public static final int GET_TOPIC_STATS_INFO = 202;
     public static final int GET_CONSUMER_CONNECTION_LIST = 203;
     public static final int GET_PRODUCER_CONNECTION_LIST = 204;
+    public static final int GET_ALL_PRODUCER_CONNECTION_LIST = 404;
     public static final int WIPE_WRITE_PERM_OF_BROKER = 205;
 
     public static final int GET_ALL_TOPIC_LIST_FROM_NAMESERVER = 206;

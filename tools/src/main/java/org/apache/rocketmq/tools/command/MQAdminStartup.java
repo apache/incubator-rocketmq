@@ -45,6 +45,7 @@ import org.apache.rocketmq.tools.command.broker.UpdateBrokerConfigSubCommand;
 import org.apache.rocketmq.tools.command.cluster.CLusterSendMsgRTCommand;
 import org.apache.rocketmq.tools.command.cluster.ClusterListSubCommand;
 import org.apache.rocketmq.tools.command.connection.ConsumerConnectionSubCommand;
+import org.apache.rocketmq.tools.command.connection.ProducerConnectionAllSubCommand;
 import org.apache.rocketmq.tools.command.connection.ProducerConnectionSubCommand;
 import org.apache.rocketmq.tools.command.consumer.ConsumerProgressSubCommand;
 import org.apache.rocketmq.tools.command.consumer.ConsumerStatusSubCommand;
@@ -174,6 +175,7 @@ public class MQAdminStartup {
 
         initCommand(new ProducerConnectionSubCommand());
         initCommand(new ConsumerConnectionSubCommand());
+        initCommand(new ProducerConnectionAllSubCommand());
         initCommand(new ConsumerProgressSubCommand());
         initCommand(new ConsumerStatusSubCommand());
         initCommand(new CloneGroupOffsetCommand());
