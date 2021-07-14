@@ -188,7 +188,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
             topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
                     DLQ_NUMS_PER_GROUP,
-                    PermName.PERM_WRITE, 0);
+                    PermName.PERM_WRITE | PermName.PERM_READ, 0);
             if (null == topicConfig) {
                 response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("topic[" + newTopic + "] not exist");
@@ -343,7 +343,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
                 topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
                     DLQ_NUMS_PER_GROUP,
-                    PermName.PERM_WRITE, 0
+                    PermName.PERM_WRITE | PermName.PERM_READ, 0
                 );
                 msg.setTopic(newTopic);
                 msg.setQueueId(queueIdInt);
