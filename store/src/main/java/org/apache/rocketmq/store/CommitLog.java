@@ -414,7 +414,12 @@ public class CommitLog {
     }
 
     public long getConfirmOffset() {
-        return this.confirmOffset;
+        if (this.defaultMessageStore.getMessageStoreConfig().isMessageIndexEnable()
+            && this.defaultMessageStore.getMessageStoreConfig().isMessageIndexSafe()) {
+            return this.defaultMessageStore.getStoreCheckpoint().getMinTimestampIndex();
+        } else {
+            return this.defaultMessageStore.getStoreCheckpoint().getMinTimestamp();
+        }
     }
 
     public void setConfirmOffset(long phyOffset) {
@@ -523,24 +528,7 @@ public class CommitLog {
             return false;
         }
 
-        if (this.defaultMessageStore.getMessageStoreConfig().isMessageIndexEnable()
-            && this.defaultMessageStore.getMessageStoreConfig().isMessageIndexSafe()) {
-            if (storeTimestamp <= this.defaultMessageStore.getStoreCheckpoint().getMinTimestampIndex()) {
-                log.info("find check timestamp, {} {}",
-                    storeTimestamp,
-                    UtilAll.timeMillisToHumanString(storeTimestamp));
-                return true;
-            }
-        } else {
-            if (storeTimestamp <= this.defaultMessageStore.getStoreCheckpoint().getMinTimestamp()) {
-                log.info("find check timestamp, {} {}",
-                    storeTimestamp,
-                    UtilAll.timeMillisToHumanString(storeTimestamp));
-                return true;
-            }
-        }
-
-        return false;
+        return storeTimestamp <= this.getConfirmOffset();
     }
 
     private void notifyMessageArriving() {
