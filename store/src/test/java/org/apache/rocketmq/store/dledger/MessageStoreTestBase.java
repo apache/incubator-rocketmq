@@ -20,6 +20,7 @@ import io.openmessaging.storage.dledger.DLedgerConfig;
 import io.openmessaging.storage.dledger.DLedgerServer;
 import java.io.File;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.util.Arrays;
 import org.apache.rocketmq.common.BrokerConfig;
 import org.apache.rocketmq.common.message.MessageDecoder;
@@ -82,7 +83,7 @@ public class MessageStoreTestBase extends StoreTestBase {
                     Arrays.sort(files);
                     for (int i = files.length - 1; i >= 0; i--) {
                         File file = files[i];
-                        file.delete();
+                        Files.delete(file.toPath());
                         if (files.length - i >= deleteFileNum) {
                             break;
                         }
