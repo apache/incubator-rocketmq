@@ -225,7 +225,7 @@ public class MappedFileQueueTest {
                mappedFile.getFile().setLastModified(System.currentTimeMillis() - expiredTime * 2);
            }
         }
-        mappedFileQueue.deleteExpiredFileByTime(expiredTime, 0, 0, false);
+        mappedFileQueue.deleteExpiredFileByTime(expiredTime, 0, 0, false, Integer.MAX_VALUE);
         assertThat(mappedFileQueue.getMappedFiles().size()).isEqualTo(45);
     }
 

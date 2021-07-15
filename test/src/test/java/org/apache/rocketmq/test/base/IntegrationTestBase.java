@@ -47,7 +47,7 @@ public class IntegrationTestBase {
     protected static final List<BrokerController> BROKER_CONTROLLERS = new ArrayList<>();
     protected static final List<NamesrvController> NAMESRV_CONTROLLERS = new ArrayList<>();
     protected static int topicCreateTime = 30 * 1000;
-    protected static final int COMMIT_LOG_SIZE = 1024 * 1024 * 100;
+    public static volatile int COMMIT_LOG_SIZE = 1024 * 1024 * 100;
     protected static final int INDEX_NUM = 1000;
 
     private static final AtomicInteger port = new AtomicInteger(40000);
@@ -183,7 +183,7 @@ public class IntegrationTestBase {
     }
 
     public static boolean initTopic(String topic, String nsAddr, String clusterName) {
-        return initTopic(topic, nsAddr, clusterName, 8);
+        return initTopic(topic, nsAddr, clusterName, BaseConf.QUEUE_NUMBERS);
     }
 
     public static void deleteFile(File file) {

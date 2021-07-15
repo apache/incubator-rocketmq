@@ -17,22 +17,49 @@
 package org.apache.rocketmq.broker.processor;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import java.io.UnsupportedEncodingException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 import org.apache.rocketmq.acl.AccessValidator;
 import org.apache.rocketmq.acl.plain.PlainAccessValidator;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.client.ClientChannelInfo;
 import org.apache.rocketmq.broker.client.ConsumerGroupInfo;
+import org.apache.rocketmq.broker.domain.LogicalQueuesInfoInBroker;
 import org.apache.rocketmq.broker.filter.ConsumerFilterData;
 import org.apache.rocketmq.broker.filter.ExpressionMessageFilter;
-import org.apache.rocketmq.common.topic.TopicValidator;
+import org.apache.rocketmq.broker.topic.TopicConfigManager;
 import org.apache.rocketmq.broker.transaction.queue.TransactionalMessageUtil;
 import org.apache.rocketmq.common.AclConfig;
 import org.apache.rocketmq.common.MQVersion;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.PlainAccessConfig;
 import org.apache.rocketmq.common.TopicConfig;
+import org.apache.rocketmq.common.TopicQueueId;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.admin.ConsumeStats;
 import org.apache.rocketmq.common.admin.OffsetWrapper;
@@ -53,23 +80,29 @@ import org.apache.rocketmq.common.protocol.body.Connection;
 import org.apache.rocketmq.common.protocol.body.ConsumeQueueData;
 import org.apache.rocketmq.common.protocol.body.ConsumeStatsList;
 import org.apache.rocketmq.common.protocol.body.ConsumerConnection;
+import org.apache.rocketmq.common.protocol.body.CreateMessageQueueForLogicalQueueRequestBody;
 import org.apache.rocketmq.common.protocol.body.GroupList;
 import org.apache.rocketmq.common.protocol.body.KVTable;
 import org.apache.rocketmq.common.protocol.body.LockBatchRequestBody;
 import org.apache.rocketmq.common.protocol.body.LockBatchResponseBody;
+import org.apache.rocketmq.common.protocol.body.MigrateLogicalQueueBody;
 import org.apache.rocketmq.common.protocol.body.ProducerConnection;
 import org.apache.rocketmq.common.protocol.body.QueryConsumeQueueResponseBody;
 import org.apache.rocketmq.common.protocol.body.QueryConsumeTimeSpanBody;
 import org.apache.rocketmq.common.protocol.body.QueryCorrectionOffsetBody;
 import org.apache.rocketmq.common.protocol.body.QueueTimeSpan;
+import org.apache.rocketmq.common.protocol.body.ReuseTopicLogicalQueueRequestBody;
+import org.apache.rocketmq.common.protocol.body.SealTopicLogicalQueueRequestBody;
 import org.apache.rocketmq.common.protocol.body.TopicList;
 import org.apache.rocketmq.common.protocol.body.UnlockBatchRequestBody;
+import org.apache.rocketmq.common.protocol.body.UpdateTopicLogicalQueueMappingRequestBody;
 import org.apache.rocketmq.common.protocol.header.CloneGroupOffsetRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ConsumeMessageDirectlyResultRequestHeader;
 import org.apache.rocketmq.common.protocol.header.CreateAccessConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.CreateTopicRequestHeader;
 import org.apache.rocketmq.common.protocol.header.DeleteAccessConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.DeleteSubscriptionGroupRequestHeader;
+import org.apache.rocketmq.common.protocol.header.DeleteTopicLogicalQueueRequestHeader;
 import org.apache.rocketmq.common.protocol.header.DeleteTopicRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetAllTopicConfigResponseHeader;
 import org.apache.rocketmq.common.protocol.header.GetBrokerAclConfigResponseHeader;
@@ -88,11 +121,13 @@ import org.apache.rocketmq.common.protocol.header.GetMaxOffsetResponseHeader;
 import org.apache.rocketmq.common.protocol.header.GetMinOffsetRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetMinOffsetResponseHeader;
 import org.apache.rocketmq.common.protocol.header.GetProducerConnectionListRequestHeader;
+import org.apache.rocketmq.common.protocol.header.GetTopicConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.GetTopicStatsInfoRequestHeader;
 import org.apache.rocketmq.common.protocol.header.QueryConsumeQueueRequestHeader;
 import org.apache.rocketmq.common.protocol.header.QueryConsumeTimeSpanRequestHeader;
 import org.apache.rocketmq.common.protocol.header.QueryCorrectionOffsetHeader;
 import org.apache.rocketmq.common.protocol.header.QueryTopicConsumeByWhoRequestHeader;
+import org.apache.rocketmq.common.protocol.header.QueryTopicLogicalQueueMappingRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResetOffsetRequestHeader;
 import org.apache.rocketmq.common.protocol.header.ResumeCheckHalfMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SearchOffsetRequestHeader;
@@ -102,9 +137,12 @@ import org.apache.rocketmq.common.protocol.header.ViewBrokerStatsDataRequestHead
 import org.apache.rocketmq.common.protocol.header.filtersrv.RegisterFilterServerRequestHeader;
 import org.apache.rocketmq.common.protocol.header.filtersrv.RegisterFilterServerResponseHeader;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
+import org.apache.rocketmq.common.protocol.route.LogicalQueueRouteData;
+import org.apache.rocketmq.common.protocol.route.MessageQueueRouteState;
 import org.apache.rocketmq.common.stats.StatsItem;
 import org.apache.rocketmq.common.stats.StatsSnapshot;
 import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
+import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.filter.util.BitsArray;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
@@ -116,6 +154,7 @@ import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import org.apache.rocketmq.srvutil.ConcurrentHashMapUtil;
 import org.apache.rocketmq.store.ConsumeQueue;
 import org.apache.rocketmq.store.ConsumeQueueExt;
 import org.apache.rocketmq.store.DefaultMessageStore;
@@ -125,18 +164,6 @@ import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.PutMessageStatus;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
-
-import java.io.UnsupportedEncodingException;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 
 public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -234,6 +261,26 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
                 return resumeCheckHalfMessage(ctx, request);
             case RequestCode.GET_BROKER_CLUSTER_ACL_CONFIG:
                 return getBrokerClusterAclConfig(ctx, request);
+            case RequestCode.GET_TOPIC_CONFIG:
+                return getTopicConfig(ctx, request);
+            case RequestCode.UPDATE_TOPIC_LOGICAL_QUEUE_MAPPING:
+                return updateTopicLogicalQueueMapping(ctx, request);
+            case RequestCode.DELETE_TOPIC_LOGICAL_QUEUE_MAPPING:
+                return deleteTopicLogicalQueueMapping(ctx, request);
+            case RequestCode.QUERY_TOPIC_LOGICAL_QUEUE_MAPPING:
+                return queryTopicLogicalQueueMapping(ctx, request);
+            case RequestCode.SEAL_TOPIC_LOGICAL_QUEUE:
+                return sealTopicLogicalQueue(ctx, request);
+            case RequestCode.REUSE_TOPIC_LOGICAL_QUEUE:
+                return reuseTopicLogicalQueue(ctx, request);
+            case RequestCode.CREATE_MESSAGE_QUEUE_FOR_LOGICAL_QUEUE:
+                return createMessageQueueForLogicalQueue(ctx, request);
+            case RequestCode.MIGRATE_TOPIC_LOGICAL_QUEUE_PREPARE:
+                return migrateTopicLogicalQueuePrepare(ctx, request);
+            case RequestCode.MIGRATE_TOPIC_LOGICAL_QUEUE_COMMIT:
+                return migrateTopicLogicalQueueCommit(ctx, request);
+            case RequestCode.MIGRATE_TOPIC_LOGICAL_QUEUE_NOTIFY:
+                return migrateTopicLogicalQueueNotify(ctx, request);
             default:
                 break;
         }
@@ -299,6 +346,7 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
         if (this.brokerController.getBrokerConfig().isAutoDeleteUnusedStats()) {
             this.brokerController.getBrokerStatsManager().onTopicDeleted(requestHeader.getTopic());
         }
+        this.brokerController.getTopicConfigManager().deleteQueueRouteData(requestHeader.getTopic());
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;
@@ -573,7 +621,33 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
         final GetMaxOffsetRequestHeader requestHeader =
             (GetMaxOffsetRequestHeader) request.decodeCommandCustomHeader(GetMaxOffsetRequestHeader.class);
 
-        long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(requestHeader.getTopic(), requestHeader.getQueueId());
+        String topic = requestHeader.getTopic();
+        int queueId = requestHeader.getQueueId();
+
+        if (requestHeader.getLogicalQueue()) {
+            LogicalQueuesInfoInBroker logicalQueuesInfo = this.brokerController.getTopicConfigManager().selectLogicalQueuesInfo(topic);
+            if (logicalQueuesInfo != null) {
+                // max offset must be in the queue route with largest offset
+                LogicalQueueRouteData requestLogicalQueueRouteData = logicalQueuesInfo.queryQueueRouteDataByQueueId(queueId, Long.MAX_VALUE);
+                if (requestLogicalQueueRouteData != null) {
+                    logicalQueuesInfo.readLock().lock();
+                    try {
+                        List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.get(requestLogicalQueueRouteData.getLogicalQueueIndex());
+                        if (queueRouteDataList != null && !queueRouteDataList.isEmpty()) {
+                            LogicalQueueRouteData selectedLogicalQueueRouteData = queueRouteDataList.get(queueRouteDataList.size() - 1);
+                            if (!Objects.equals(selectedLogicalQueueRouteData.getMessageQueue(), new MessageQueue(topic, this.brokerController.getBrokerConfig().getBrokerName(), queueId))) {
+                                log.info("getMaxOffset topic={} queueId={} not latest, redirect: {}", topic, queueId, selectedLogicalQueueRouteData);
+                                response.addExtField(MessageConst.PROPERTY_REDIRECT, "1");
+                            }
+                        }
+                    } finally {
+                        logicalQueuesInfo.readLock().unlock();
+                    }
+                }
+            }
+        }
+
+        long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId, requestHeader.isCommitted());
 
         responseHeader.setOffset(offset);
 
@@ -1621,5 +1695,617 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
         inner.setMsgId(msgExt.getMsgId());
         inner.setWaitStoreMsgOK(false);
         return inner;
+    }
+
+    private RemotingCommand getTopicConfig(ChannelHandlerContext ctx,
+        RemotingCommand request) throws RemotingCommandException {
+        GetTopicConfigRequestHeader requestHeader = (GetTopicConfigRequestHeader) request.decodeCommandCustomHeader(GetTopicConfigRequestHeader.class);
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+
+        TopicConfig topicConfig = this.brokerController.getTopicConfigManager().getTopicConfigTable().get(requestHeader.getTopic());
+        if (topicConfig == null) {
+            log.error("No topic in this broker, client: {} topic: {}", ctx.channel().remoteAddress(), requestHeader.getTopic());
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("No topic in this broker. topic: " + requestHeader.getTopic());
+            return response;
+        }
+        String content = JSONObject.toJSONString(topicConfig);
+        try {
+            response.setBody(content.getBytes(MixAll.DEFAULT_CHARSET));
+        } catch (UnsupportedEncodingException e) {
+            log.error("UnsupportedEncodingException getTopicConfig: topic=" + topicConfig.getTopicName(), e);
+
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark("UnsupportedEncodingException " + e.getMessage());
+            return response;
+        }
+        response.setCode(ResponseCode.SUCCESS);
+        response.setRemark(null);
+
+        return response;
+    }
+
+    private RemotingCommand updateTopicLogicalQueueMapping(ChannelHandlerContext ctx,
+        RemotingCommand request) throws RemotingCommandException {
+        UpdateTopicLogicalQueueMappingRequestBody requestBody = RemotingSerializable.decode(request.getBody(), UpdateTopicLogicalQueueMappingRequestBody.class);
+        RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SYSTEM_ERROR);
+        response.setRemark("unknown error");
+        if (requestBody == null) {
+            response.setRemark("decode null");
+            return response;
+        }
+        String topic = requestBody.getTopic();
+        int queueId = requestBody.getQueueId();
+        String brokerName = this.brokerController.getBrokerConfig().getBrokerName();
+        int logicalQueueIdx = requestBody.getLogicalQueueIdx();
+        log.info("updateTopicLogicalQueueMapping topic={} queueId={} logicalQueueIndex={}", topic, queueId, logicalQueueIdx);
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        TopicConfig topicConfig = topicConfigManager.selectTopicConfig(topic);
+        if (topicConfig == null) {
+            log.warn("updateTopicLogicalQueueMapping topic={} queueId={} logicalQueueIndex={} topic not exist", topic, queueId, logicalQueueIdx);
+            response.setRemark("topic not exist");
+            return response;
+        }
+
+        LogicalQueuesInfoInBroker logicalQueuesInfo;
+        LogicalQueueRouteData newQueueRouteData = new LogicalQueueRouteData();
+        newQueueRouteData.setBrokerAddr(this.brokerController.getBrokerAddr());
+        newQueueRouteData.setMessageQueue(new MessageQueue(topic, brokerName, queueId));
+        if (logicalQueueIdx >= 0) {
+            // add logical queue
+            newQueueRouteData.setLogicalQueueIndex(logicalQueueIdx);
+            newQueueRouteData.setLogicalQueueDelta(0L);
+            newQueueRouteData.setState(MessageQueueRouteState.Normal);
+            logicalQueuesInfo = topicConfigManager.getOrCreateLogicalQueuesInfo(topic);
+            logicalQueuesInfo.writeLock().lock();
+            try {
+                // verify whether this message queue is already set up
+                for (List<LogicalQueueRouteData> queueRouteDataList : logicalQueuesInfo.values()) {
+                    for (Iterator<LogicalQueueRouteData> iterator = queueRouteDataList.iterator(); iterator.hasNext(); ) {
+                        LogicalQueueRouteData queueRouteData = iterator.next();
+                        if (Objects.equals(queueRouteData.getMessageQueue(), newQueueRouteData.getMessageQueue())) {
+                            if (queueRouteData.getLogicalQueueIndex() == logicalQueueIdx) {
+                                log.info("updateTopicLogicalQueueMapping topic={} queueId={} logicalQueueIndex={} already set up", topic, queueId, logicalQueueIdx);
+                                response.setCode(ResponseCode.SUCCESS);
+                                response.setRemark("already set up");
+                                return response;
+                            } else {
+                                log.warn("updateTopicLogicalQueueMapping topic={} queueId={} already assigned logicalQueueIdx={}, will reassign as logicalQueueIdx={}", topic, queueRouteData.getMessageQueue(), queueRouteData.getLogicalQueueIndex(), newQueueRouteData.getLogicalQueueIndex());
+                                iterator.remove();
+                                break;
+                            }
+                        }
+                    }
+                }
+                List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.computeIfAbsent(logicalQueueIdx, ignore -> Lists.newArrayListWithExpectedSize(1));
+                int idx = Collections.binarySearch(queueRouteDataList, newQueueRouteData, Comparator.comparingLong(LogicalQueueRouteData::getLogicalQueueDelta).thenComparingInt(LogicalQueueRouteData::getStateOrdinal));
+                if (idx >= 0) {
+                    log.warn("updateTopicLogicalQueueMapping topic={} queueId={} logicalQueueIdx={} found same logicalQueueOffset and will replace, exist {}, new {}", topic, queueId, logicalQueueIdx, queueRouteDataList.get(idx), newQueueRouteData);
+                    queueRouteDataList.set(idx, newQueueRouteData);
+                    response.setCode(ResponseCode.SYSTEM_ERROR);
+                    response.setRemark("duplicate logicalQueueOffset found");
+                } else {
+                    idx = -idx - 1;
+                    queueRouteDataList.add(idx, newQueueRouteData);
+                    logicalQueuesInfo.updateQueueRouteDataByQueueId(newQueueRouteData.getQueueId(), newQueueRouteData);
+                    response.setCode(ResponseCode.SUCCESS);
+                    response.setRemark("set up");
+                    log.info("updateTopicLogicalQueueMapping topic={} queueId={} logicalQueueIdx={} added as #{}", topic, queueId, logicalQueueIdx, idx);
+                }
+            } finally {
+                logicalQueuesInfo.writeLock().unlock();
+            }
+        } else {
+            // delete logical queue
+            logicalQueuesInfo = topicConfigManager.getOrCreateLogicalQueuesInfo(topic);
+            logicalQueuesInfo.writeLock().lock();
+            try {
+                for (List<LogicalQueueRouteData> queueRouteDataList : logicalQueuesInfo.values()) {
+                    queueRouteDataList.removeIf(queueRouteData -> Objects.equals(queueRouteData.getMessageQueue(), newQueueRouteData.getMessageQueue()));
+                }
+            } finally {
+                logicalQueuesInfo.writeLock().unlock();
+            }
+            logicalQueuesInfo.updateQueueRouteDataByQueueId(newQueueRouteData.getQueueId(), null);
+            this.brokerController.getSendMessageProcessor().getInFlyWritingCounterMap().remove(new TopicQueueId(topic, queueId));
+            response.setCode(ResponseCode.SUCCESS);
+            response.setRemark("deleted");
+            log.info("updateTopicLogicalQueueMapping topic={} queueId={} deleted as logical queue", topic, queueId, logicalQueueIdx);
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfig, topicConfigManager.getDataVersion());
+
+        return response;
+    }
+
+    private RemotingCommand deleteTopicLogicalQueueMapping(ChannelHandlerContext ctx,
+        RemotingCommand request) throws RemotingCommandException {
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        DeleteTopicLogicalQueueRequestHeader requestHeader =
+            (DeleteTopicLogicalQueueRequestHeader) request.decodeCommandCustomHeader(DeleteTopicLogicalQueueRequestHeader.class);
+        String topic = requestHeader.getTopic();
+        log.info("deleteTopicLogicalQueueMapping topic={}", topic);
+
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+        if (logicalQueuesInfo == null) {
+            response.setCode(ResponseCode.SUCCESS);
+            response.setRemark("already deleted");
+            log.info("deleteTopicLogicalQueueMapping topic={} already deleted", topic);
+            return response;
+        }
+        String brokerName = this.brokerController.getBrokerConfig().getBrokerName();
+        long size = logicalQueuesInfo.values().stream().flatMap(Collection::stream).filter(v -> Objects.equals(v.getBrokerName(), brokerName)).count();
+        if (size > 0) {
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark(String.format(Locale.ENGLISH, "still %d message queues", size));
+            log.info("deleteTopicLogicalQueueMapping topic={} still {} message queues", topic, size);
+            return response;
+        }
+        topicConfigManager.deleteQueueRouteData(topic);
+        response.setCode(ResponseCode.SUCCESS);
+        response.setRemark("deleted");
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfigManager.selectTopicConfig(topic), topicConfigManager.getDataVersion());
+
+        log.info("deleteTopicLogicalQueueMapping topic={} deleted", topic);
+        return response;
+    }
+
+    private RemotingCommand queryTopicLogicalQueueMapping(ChannelHandlerContext ctx,
+        RemotingCommand request) throws RemotingCommandException {
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        QueryTopicLogicalQueueMappingRequestHeader requestHeader =
+            (QueryTopicLogicalQueueMappingRequestHeader) request.decodeCommandCustomHeader(QueryTopicLogicalQueueMappingRequestHeader.class);
+        String topic = requestHeader.getTopic();
+        log.info("queryTopicLogicalQueueMapping topic={}", topic);
+        LogicalQueuesInfoInBroker logicalQueuesInfo = brokerController.getTopicConfigManager().selectLogicalQueuesInfo(topic);
+        TreeMap<Integer, List<LogicalQueueRouteData>> result = null;
+        if (logicalQueuesInfo != null) {
+            result = Maps.newTreeMap();
+            logicalQueuesInfo.readLock().lock();
+            try {
+                for (Map.Entry<Integer, List<LogicalQueueRouteData>> entry : logicalQueuesInfo.entrySet()) {
+                    Integer k = entry.getKey();
+                    List<LogicalQueueRouteData> v = entry.getValue();
+                    result.put(k, ImmutableList.copyOf(v));
+                }
+            } finally {
+                logicalQueuesInfo.readLock().unlock();
+            }
+        }
+        response.setCode(ResponseCode.SUCCESS);
+        response.setBody(RemotingSerializable.encode(result));
+        return response;
+    }
+
+    private void sealLogicalQueueRouteData(LogicalQueueRouteData queueRouteData,
+        MessageStore messageStore) throws TimeoutException, InterruptedException {
+        queueRouteData.setState(MessageQueueRouteState.ReadOnly);
+
+        String topic = queueRouteData.getTopic();
+        int queueId = queueRouteData.getQueueId();
+
+        // busy wait for all in-fly messages to be finished
+        TopicQueueId key = new TopicQueueId(topic, queueId);
+        long startTime = System.currentTimeMillis();
+        while (true) {
+            LongAdder counter = this.brokerController.getSendMessageProcessor().getInFlyWritingCounterMap().get(key);
+            if (counter == null || counter.sum() == 0) {
+                break;
+            }
+            if (System.currentTimeMillis() - startTime > 10_000) {
+                throw new TimeoutException();
+            }
+            Thread.sleep(100);
+        }
+        // busy wait for all CQ to be finished
+        while (messageStore.getMaxOffsetInQueue(topic, queueId, true) != messageStore.getMaxOffsetInQueue(topic, queueId, false)) {
+            if (System.currentTimeMillis() - startTime > 10_000) {
+                throw new TimeoutException();
+            }
+            Thread.sleep(100);
+        }
+
+        long firstMsgQueueOffset = messageStore.getMinOffsetInQueue(topic, queueId);
+        long lastMsgQueueOffset = messageStore.getMaxOffsetInQueue(topic, queueId, false) - 1;
+        long firstMsgTimeMillis = 0L;
+        long lastMsgTimeMillis = 0L;
+        boolean expired = false;
+        if (firstMsgQueueOffset == lastMsgQueueOffset) {
+            // no message at all
+            expired = true;
+        } else {
+            long minPhyOffset = messageStore.getMinPhyOffset();
+            long lastMsgCommitLogOffset = lastMsgQueueOffset >= 0 ? messageStore.getCommitLogOffsetInQueue(topic, queueId, lastMsgQueueOffset) : -1;
+            if (lastMsgCommitLogOffset < minPhyOffset) {
+                // commitLog already cleaned
+                expired = true;
+            } else {
+                long firstMsgCommitLogOffset = firstMsgQueueOffset >= 0 ? messageStore.getCommitLogOffsetInQueue(topic, queueId, firstMsgQueueOffset) : -1;
+                MessageExt firstMsg = firstMsgCommitLogOffset >= 0 ? messageStore.lookMessageByOffset(firstMsgCommitLogOffset) : null;
+                firstMsgTimeMillis = firstMsg != null ? firstMsg.getStoreTimestamp() : 0L;
+
+                MessageExt lastMsg = lastMsgCommitLogOffset >= 0 ? messageStore.lookMessageByOffset(lastMsgCommitLogOffset) : null;
+                lastMsgTimeMillis = lastMsg != null ? lastMsg.getStoreTimestamp() : 0L;
+            }
+        }
+
+        queueRouteData.setOffsetMax(lastMsgQueueOffset + 1);
+        queueRouteData.setFirstMsgTimeMillis(firstMsgTimeMillis);
+        queueRouteData.setLastMsgTimeMillis(lastMsgTimeMillis);
+
+        if (expired) {
+            queueRouteData.setState(MessageQueueRouteState.Expired);
+        }
+    }
+
+    private RemotingCommand sealTopicLogicalQueue(ChannelHandlerContext ctx, RemotingCommand request) {
+        SealTopicLogicalQueueRequestBody requestBody = RemotingSerializable.decode(request.getBody(), SealTopicLogicalQueueRequestBody.class);
+        if (requestBody == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "decode error");
+        }
+        String topic = requestBody.getTopic();
+        int queueId = requestBody.getQueueId();
+        int logicalQueueIdx = requestBody.getLogicalQueueIndex();
+        log.info("sealTopicLogicalQueue topic={} queueId={}", topic, queueId);
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        TopicConfig topicConfig = topicConfigManager.selectTopicConfig(topic);
+        if (topicConfig == null) {
+            log.warn("sealTopicLogicalQueue topic={} queueId={} topic not exist", topic, queueId);
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not exist");
+        }
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SUCCESS);
+
+        LogicalQueueRouteData resultQueueRouteData;
+
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.getOrCreateLogicalQueuesInfo(topic);
+        logicalQueuesInfo.readLock().lock();
+        try {
+            List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.get(logicalQueueIdx);
+            if (queueRouteDataList == null) {
+                log.info("sealTopicLogicalQueue topic={} queueId={} logicalQueueIdx={} not exist", topic, queueId, logicalQueueIdx);
+                response.setRemark("logical queue not exist");
+                return response;
+            }
+            List<LogicalQueueRouteData> foundQueues = queueRouteDataList.stream()
+                .filter(queueRouteData -> queueId == queueRouteData.getQueueId()).collect(Collectors.toList());
+            if (foundQueues.isEmpty()) {
+                log.info("sealTopicLogicalQueue topic={} queueId={} logicalQueueIdx={} queueId={} not exist", topic, queueId, logicalQueueIdx, queueId);
+                response.setRemark("message queue not exist");
+                return response;
+            }
+            Optional<LogicalQueueRouteData> firstMainQueueRouteDataOptional = foundQueues.stream().filter(LogicalQueueRouteData::isWritable).findFirst();
+            if (!firstMainQueueRouteDataOptional.isPresent()) {
+                log.info("sealTopicLogicalQueue topic={} queueId={} logicalQueueIdx={} queueId={} already sealed", topic, queueId, logicalQueueIdx, queueId);
+                response.setRemark("message queue already sealed");
+                return response;
+            }
+            resultQueueRouteData = firstMainQueueRouteDataOptional.get();
+        } finally {
+            logicalQueuesInfo.readLock().unlock();
+        }
+        try {
+            sealLogicalQueueRouteData(resultQueueRouteData, brokerController.getMessageStore());
+        } catch (InterruptedException e) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "thread interrupted");
+        } catch (TimeoutException e) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "seal timeout");
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfigManager.selectTopicConfig(topic), topicConfigManager.getDataVersion());
+
+        response.setBody(RemotingSerializable.encode(resultQueueRouteData));
+        return response;
+    }
+
+    private RemotingCommand reuseTopicLogicalQueue(ChannelHandlerContext ctx, RemotingCommand request) {
+        ReuseTopicLogicalQueueRequestBody requestBody = RemotingSerializable.decode(request.getBody(), ReuseTopicLogicalQueueRequestBody.class);
+        if (requestBody == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "decode error");
+        }
+        String topic = requestBody.getTopic();
+        int queueId = requestBody.getQueueId();
+        String brokerName = this.brokerController.getBrokerConfig().getBrokerName();
+        MessageQueue mq = new MessageQueue(topic, brokerName, queueId);
+        int logicalQueueIdx = requestBody.getLogicalQueueIndex();
+        MessageQueueRouteState messageQueueRouteState = requestBody.getMessageQueueRouteState();
+        log.info("reuseTopicLogicalQueue topic={} queueId={} logicalQueueIdx={} messageQueueRouteState={}", topic, queueId, logicalQueueIdx, messageQueueRouteState);
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+        if (logicalQueuesInfo == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "queue route data not found");
+        }
+        if (queueId >= topicConfigManager.selectTopicConfig(topic).getWriteQueueNums()) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "found no queue");
+        }
+        logicalQueuesInfo.writeLock().lock();
+        LogicalQueueRouteData queueRouteData = new LogicalQueueRouteData(
+            logicalQueueIdx,
+            MessageQueueRouteState.WriteOnly.equals(messageQueueRouteState) ? -1 : 0,
+            new MessageQueue(topic, brokerName, queueId),
+            messageQueueRouteState,
+            this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId, false),
+            -1,
+            -1,
+            -1,
+            this.brokerController.getBrokerAddr()
+            );
+        try {
+            if (logicalQueuesInfo.values().stream().flatMap(Collection::stream).filter(v -> Objects.equals(v.getMessageQueue(), mq)).anyMatch(LogicalQueueRouteData::isWritable)) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "queue writable");
+            }
+            logicalQueuesInfo.computeIfAbsent(logicalQueueIdx, ignore -> Lists.newArrayListWithExpectedSize(1)).add(queueRouteData);
+            logicalQueuesInfo.updateQueueRouteDataByQueueId(queueId, queueRouteData);
+            this.brokerController.getSendMessageProcessor().getInFlyWritingCounterMap().remove(new TopicQueueId(topic, queueId));
+        } finally {
+            logicalQueuesInfo.writeLock().unlock();
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfigManager.selectTopicConfig(topic), topicConfigManager.getDataVersion());
+
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SUCCESS);
+        response.setBody(RemotingSerializable.encode(queueRouteData));
+        return response;
+    }
+
+    private RemotingCommand createMessageQueueForLogicalQueue(ChannelHandlerContext ctx, RemotingCommand request) {
+        CreateMessageQueueForLogicalQueueRequestBody requestBody = RemotingSerializable.decode(request.getBody(), CreateMessageQueueForLogicalQueueRequestBody.class);
+        if (requestBody == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "decode error");
+        }
+        String topic = requestBody.getTopic();
+        int logicalQueueIdx = requestBody.getLogicalQueueIndex();
+        MessageQueueRouteState messageQueueStatus = requestBody.getMessageQueueStatus();
+        log.info("createMessageQueueForLogicalQueue topic={} logicalQueueIdx={}", topic, logicalQueueIdx);
+
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        LogicalQueuesInfoInBroker logicalQueuesInfo;
+        LogicalQueueRouteData queueRouteData;
+        TopicConfig topicConfig;
+        while (true) {
+            topicConfig = topicConfigManager.selectTopicConfig(topic);
+            if (topicConfig == null || topicConfig.getWriteQueueNums() == 0) {
+                // create topic if not exist
+                topicConfig = ConcurrentHashMapUtil.computeIfAbsent(topicConfigManager.getTopicConfigTable(), topic, s -> new TopicConfig(topic, 0, 0, this.brokerController.getBrokerConfig().getBrokerPermission()));
+                logicalQueuesInfo = topicConfigManager.getOrCreateLogicalQueuesInfo(topic);
+            } else {
+                logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+            }
+            if (topicConfig.getWriteQueueNums() > 0 && logicalQueuesInfo == null) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not enable logical queue");
+            }
+            TopicConfig newTopicConfig = new TopicConfig(topicConfig);
+            newTopicConfig.setWriteQueueNums(newTopicConfig.getWriteQueueNums() + 1);
+            newTopicConfig.setReadQueueNums(newTopicConfig.getReadQueueNums() + 1);
+
+            int queueId = newTopicConfig.getWriteQueueNums() - 1;
+            queueRouteData = new LogicalQueueRouteData();
+            queueRouteData.setLogicalQueueIndex(logicalQueueIdx);
+            queueRouteData.setBrokerAddr(this.brokerController.getBrokerAddr());
+            queueRouteData.setMessageQueue(new MessageQueue(topic, this.brokerController.getBrokerConfig().getBrokerName(), queueId));
+            if (messageQueueStatus != null) {
+                queueRouteData.setState(messageQueueStatus);
+                switch (messageQueueStatus) {
+                    case WriteOnly:
+                    case Expired:
+                        queueRouteData.setLogicalQueueDelta(-1L);
+                        break;
+                    default:
+                        queueRouteData.setLogicalQueueDelta(0L);
+                }
+            }
+
+            logicalQueuesInfo.writeLock().lock();
+            try {
+                List<LogicalQueueRouteData> l = logicalQueuesInfo.computeIfAbsent(logicalQueueIdx, i -> Lists.newArrayListWithExpectedSize(1));
+                if (MessageQueueRouteState.WriteOnly.equals(messageQueueStatus) && l.stream().anyMatch(LogicalQueueRouteData::isWriteOnly)) {
+                    return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "multiple WriteOnly queue");
+                } else if (MessageQueueRouteState.Normal.equals(messageQueueStatus) && l.stream().anyMatch(LogicalQueueRouteData::isWritable)) {
+                    return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "multiple writable queue");
+                }
+                if (topicConfigManager.replaceTopicConfig(topic, topicConfig, newTopicConfig)) {
+                    l.add(queueRouteData);
+                    logicalQueuesInfo.updateQueueRouteDataByQueueId(queueId, queueRouteData);
+                    break;
+                }
+            } finally {
+                logicalQueuesInfo.writeLock().unlock();
+            }
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfig, topicConfigManager.getDataVersion());
+
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SUCCESS);
+        response.setBody(RemotingSerializable.encode(queueRouteData));
+        return response;
+    }
+
+    private RemotingCommand migrateTopicLogicalQueuePrepare(ChannelHandlerContext ctx, RemotingCommand request) {
+        MigrateLogicalQueueBody reqRespBody = RemotingSerializable.decode(request.getBody(), MigrateLogicalQueueBody.class);
+        if (reqRespBody == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "decode error");
+        }
+        LogicalQueueRouteData fromQueueRouteData = reqRespBody.getFromQueueRouteData();
+        LogicalQueueRouteData toQueueRouteData = reqRespBody.getToQueueRouteData();
+        log.info("migrateTopicLogicalQueuePrepare fromQueueRouteData={} toQueueRouteData={}", fromQueueRouteData, toQueueRouteData);
+        final MessageQueue fromMessageQueue = fromQueueRouteData.getMessageQueue();
+        final int fromQueueId = fromQueueRouteData.getQueueId();
+        final long fromOffsetDelta = fromQueueRouteData.getOffsetDelta();
+        int logicalQueueIndex = fromQueueRouteData.getLogicalQueueIndex();
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        String topic = fromQueueRouteData.getTopic();
+        if (!topicConfigManager.getTopicConfigTable().containsKey(topic)) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not exist");
+        }
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+        if (logicalQueuesInfo == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not enable logical queue");
+        }
+        logicalQueuesInfo.writeLock().lock();
+        try {
+            List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.get(logicalQueueIndex);
+            if (queueRouteDataList == null) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, String.format(Locale.ENGLISH, "logical queue %d not exist", logicalQueueIndex));
+            }
+            fromQueueRouteData = null;
+            for (LogicalQueueRouteData v : queueRouteDataList) {
+                if (v.isSameTo(fromMessageQueue, fromOffsetDelta)) {
+                    fromQueueRouteData = v;
+                    break;
+                }
+            }
+            if (fromQueueRouteData == null) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, String.format(Locale.ENGLISH, "message queue %d not exist", fromQueueId));
+            }
+            if (!MessageQueueRouteState.Normal.equals(fromQueueRouteData.getState())) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, String.format(Locale.ENGLISH, "message queue %d not normal state", fromQueueId));
+            }
+            reqRespBody.setFromQueueRouteData(fromQueueRouteData);
+            if (fromQueueRouteData.isWritable()) {
+                sealLogicalQueueRouteData(fromQueueRouteData, brokerController.getMessageStore());
+            }
+            toQueueRouteData.setLogicalQueueDelta(fromQueueRouteData.getLogicalQueueDelta() + fromQueueRouteData.getMessagesCount());
+            queueRouteDataList.add(toQueueRouteData);
+        } catch (InterruptedException e) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "thread interrupted");
+        } catch (TimeoutException e) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "seal timeout");
+        } finally {
+            logicalQueuesInfo.writeLock().unlock();
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfigManager.selectTopicConfig(topic), topicConfigManager.getDataVersion());
+
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SUCCESS);
+        response.setBody(RemotingSerializable.encode(reqRespBody));
+        return response;
+    }
+
+    private RemotingCommand migrateTopicLogicalQueueCommit(ChannelHandlerContext ctx, RemotingCommand request) {
+        MigrateLogicalQueueBody reqRespBody = RemotingSerializable.decode(request.getBody(), MigrateLogicalQueueBody.class);
+        if (reqRespBody == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "decode error");
+        }
+        LogicalQueueRouteData fromQueueRouteData = reqRespBody.getFromQueueRouteData();
+        LogicalQueueRouteData toQueueRouteData = reqRespBody.getToQueueRouteData();
+        log.info("migrateTopicLogicalQueueCommit toQueueRouteData={}", toQueueRouteData);
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        String topic = toQueueRouteData.getTopic();
+        int toQueueId = toQueueRouteData.getQueueId();
+        if (!topicConfigManager.getTopicConfigTable().containsKey(topic)) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not exist");
+        }
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+        if (logicalQueuesInfo == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not enable logical queue");
+        }
+        LogicalQueueRouteData queueRouteData;
+        logicalQueuesInfo.writeLock().lock();
+        try {
+            List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.get(toQueueRouteData.getLogicalQueueIndex());
+            if (queueRouteDataList == null) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, String.format(Locale.ENGLISH, "logical queue %d not exist", toQueueRouteData.getLogicalQueueIndex()));
+            }
+            queueRouteDataList.stream().filter(fromQueueRouteData::isSameTo).forEach(d -> {
+                d.copyFrom(fromQueueRouteData);
+            });
+            queueRouteData = queueRouteDataList.stream().filter(toQueueRouteData::isSameTo).findFirst().orElse(null);
+            if (queueRouteData == null) {
+                return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, String.format(Locale.ENGLISH, "message queue %d-%d not exist", toQueueId, toQueueRouteData.getOffsetDelta()));
+            }
+            queueRouteData.setLogicalQueueDelta(toQueueRouteData.getLogicalQueueDelta());
+            queueRouteData.setState(MessageQueueRouteState.Normal);
+            toQueueRouteData.setState(MessageQueueRouteState.Normal);
+            if (toQueueRouteData.getBrokerAddr() != null) {
+                queueRouteData.setBrokerAddr(toQueueRouteData.getBrokerAddr());
+            }
+        } finally {
+            logicalQueuesInfo.writeLock().unlock();
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfigManager.selectTopicConfig(topic), topicConfigManager.getDataVersion());
+
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SUCCESS);
+        response.setBody(RemotingSerializable.encode(reqRespBody));
+        return response;
+    }
+
+    private RemotingCommand migrateTopicLogicalQueueNotify(ChannelHandlerContext ctx, RemotingCommand request) {
+        MigrateLogicalQueueBody requestBody = RemotingSerializable.decode(request.getBody(), MigrateLogicalQueueBody.class);
+        if (requestBody == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "decode error");
+        }
+        LogicalQueueRouteData fromQueueRouteData = requestBody.getFromQueueRouteData();
+        LogicalQueueRouteData toQueueRouteData = requestBody.getToQueueRouteData();
+        log.info("migrateTopicLogicalQueueNotify fromQueueRouteData={} toQueueRouteData={}", fromQueueRouteData, toQueueRouteData);
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        String topic = toQueueRouteData.getTopic();
+        if (!topicConfigManager.getTopicConfigTable().containsKey(topic)) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not exist");
+        }
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+        if (logicalQueuesInfo == null) {
+            return RemotingCommand.createResponseCommand(ResponseCode.SYSTEM_ERROR, "topic not enable logical queue");
+        }
+        List<LogicalQueueRouteData> requestQueueRouteDataList = Lists.newArrayList(fromQueueRouteData, toQueueRouteData);
+        boolean toQueueRouteDataFound = false;
+        logicalQueuesInfo.writeLock().lock();
+        try {
+            List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.computeIfAbsent(toQueueRouteData.getLogicalQueueIndex(), ignore -> Lists.newArrayListWithExpectedSize(1));
+            for (LogicalQueueRouteData v : queueRouteDataList) {
+                for (Iterator<LogicalQueueRouteData> iterator = requestQueueRouteDataList.iterator(); iterator.hasNext(); ) {
+                    LogicalQueueRouteData queueRouteData = iterator.next();
+                    if (queueRouteData.isSameTo(v)) {
+                        v.copyFrom(queueRouteData);
+                        if (queueRouteData.getBrokerAddr() != null) {
+                            v.setBrokerAddr(queueRouteData.getBrokerAddr());
+                        }
+                        if (!toQueueRouteDataFound && toQueueRouteData.isSameTo(v)) {
+                            toQueueRouteDataFound = true;
+                        }
+                        iterator.remove();
+                        break;
+                    }
+                }
+                if (requestQueueRouteDataList.isEmpty()) {
+                    break;
+                }
+            }
+            if (!queueRouteDataList.isEmpty() && !toQueueRouteDataFound) {
+                // if this broker has this logical queue before, it should add latest writable route here, so that SendMessage request can be proxied
+                queueRouteDataList.add(toQueueRouteData);
+            }
+        } finally {
+            logicalQueuesInfo.writeLock().unlock();
+        }
+
+        topicConfigManager.getDataVersion().nextVersion();
+        topicConfigManager.persist(topic, logicalQueuesInfo);
+        this.brokerController.registerIncrementBrokerData(topicConfigManager.selectTopicConfig(topic), topicConfigManager.getDataVersion());
+
+        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        response.setCode(ResponseCode.SUCCESS);
+        return response;
     }
 }

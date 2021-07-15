@@ -116,6 +116,16 @@ public interface MessageStore {
     long getMaxOffsetInQueue(final String topic, final int queueId);
 
     /**
+     * Get maximum offset of the topic queue.
+     *
+     * @param topic Topic name.
+     * @param queueId Queue ID.
+     * @param committed If only count committed
+     * @return Maximum offset at present.
+     */
+    long getMaxOffsetInQueue(final String topic, final int queueId, final boolean committed);
+
+    /**
      * Get the minimum offset of the topic queue.
      *
      * @param topic Topic name.

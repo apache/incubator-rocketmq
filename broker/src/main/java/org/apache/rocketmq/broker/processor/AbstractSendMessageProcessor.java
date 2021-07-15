@@ -16,19 +16,28 @@
  */
 package org.apache.rocketmq.broker.processor;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.rocketmq.broker.BrokerController;
+import org.apache.rocketmq.broker.domain.LogicalQueuesInfoInBroker;
 import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
 import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
-import org.apache.rocketmq.common.topic.TopicValidator;
+import org.apache.rocketmq.broker.topic.TopicConfigManager;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicConfig;
 import org.apache.rocketmq.common.TopicFilterType;
+import org.apache.rocketmq.common.TopicQueueId;
 import org.apache.rocketmq.common.constant.DBMsgConstants;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.constant.PermName;
@@ -42,17 +51,23 @@ import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeaderV2;
 import org.apache.rocketmq.common.protocol.header.SendMessageResponseHeader;
+import org.apache.rocketmq.common.protocol.route.LogicalQueueRouteData;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
+import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.common.utils.ChannelUtil;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
+import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.AsyncNettyRequestProcessor;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
+import org.apache.rocketmq.srvutil.ConcurrentHashMapUtil;
 import org.apache.rocketmq.store.MessageExtBrokerInner;
+import org.apache.rocketmq.store.PutMessageResult;
 
 public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -62,6 +77,8 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
     protected final Random random = new Random(System.currentTimeMillis());
     protected final SocketAddress storeHost;
     private List<SendMessageHook> sendMessageHookList;
+
+    private final ConcurrentMap<TopicQueueId, LongAdder> inFlyWritingCounterMap = Maps.newConcurrentMap();
 
     public AbstractSendMessageProcessor(final BrokerController brokerController) {
         this.brokerController = brokerController;
@@ -330,4 +347,158 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
     public boolean rejectRequest() {
         return false;
     }
+
+
+    public ConcurrentMap<TopicQueueId, LongAdder> getInFlyWritingCounterMap() {
+        return inFlyWritingCounterMap;
+    }
+
+    protected LogicalQueueContext buildLogicalQueueContext(String topic, int queueId,
+        RemotingCommand response) {
+        TopicConfigManager topicConfigManager = this.brokerController.getTopicConfigManager();
+        LogicalQueuesInfoInBroker logicalQueuesInfo = topicConfigManager.selectLogicalQueuesInfo(topic);
+        if (logicalQueuesInfo == null) {
+            return noopLogicalQueueContext;
+        }
+        // writable route data will has largest offset
+        LogicalQueueRouteData curQueueRouteData = logicalQueuesInfo.queryQueueRouteDataByQueueId(queueId, Long.MAX_VALUE);
+        if (curQueueRouteData == null) {
+            // topic enabled logical queue, but some message queues are not converted or being converted
+            String msg = String.format(Locale.ENGLISH, "queueId %d not included in logical queue", queueId);
+            log.debug("buildLogicalQueueContext unexpected error, topic {} {}", topic, msg);
+            response.setCode(ResponseCode.SYSTEM_ERROR);
+            response.setRemark(msg);
+            return noopLogicalQueueContext;
+        }
+        LongAdder inFlyWritingCounter = ConcurrentHashMapUtil.computeIfAbsent(inFlyWritingCounterMap, new TopicQueueId(topic, queueId), ignore -> new LongAdder());
+        return new LogicalQueueContext(topic, queueId, logicalQueuesInfo, curQueueRouteData, inFlyWritingCounter);
+    }
+
+    protected class LogicalQueueContext {
+        private final String topic;
+        private final int queueId;
+        private final LogicalQueuesInfoInBroker logicalQueuesInfo;
+        private final LogicalQueueRouteData curQueueRouteData;
+        private final LongAdder inFlyWritingCounter;
+
+        public LogicalQueueContext(String topic, int queueId,
+            LogicalQueuesInfoInBroker logicalQueuesInfo,
+            LogicalQueueRouteData curQueueRouteData, LongAdder inFlyWritingCounter) {
+            this.topic = topic;
+            this.queueId = queueId;
+            this.logicalQueuesInfo = logicalQueuesInfo;
+            this.curQueueRouteData = curQueueRouteData;
+            this.inFlyWritingCounter = inFlyWritingCounter;
+        }
+
+        public CompletableFuture<RemotingCommand> hookBeforePut(ChannelHandlerContext ctx, SendMessageRequestHeader requestHeader,
+            RemotingCommand request, RemotingCommand response) {
+            if (curQueueRouteData.isWritable()) {
+                this.inFlyWritingCounter.increment();
+                return null;
+            }
+            int logicalQueueIdx = curQueueRouteData.getLogicalQueueIndex();
+            List<LogicalQueueRouteData> queueRouteDataList = logicalQueuesInfo.get(logicalQueueIdx);
+            LogicalQueueRouteData writableQueueRouteData = null;
+            for (int i = queueRouteDataList.size() - 1; i >= 0; i--) {
+                LogicalQueueRouteData queueRouteData = queueRouteDataList.get(i);
+                if (queueRouteData.isWritable()) {
+                    writableQueueRouteData = queueRouteData;
+                    break;
+                }
+            }
+            if (writableQueueRouteData == null) {
+                response.setCode(ResponseCode.NO_PERMISSION);
+                response.setRemark(String.format(Locale.ENGLISH, "broker[%s] topic[%s] queueId[%d] logicalQueueIdx[%d] not writable", AbstractSendMessageProcessor.this.brokerController.getBrokerConfig().getBrokerIP1(), topic, queueId, logicalQueueIdx));
+                return CompletableFuture.completedFuture(response);
+            }
+            if ((Optional.ofNullable(requestHeader.getSysFlag()).orElse(0) & MessageSysFlag.LOGICAL_QUEUE_FLAG) > 0) {
+                // new client, use redirect
+                response.setCode(ResponseCode.NO_PERMISSION);
+                response.addExtField(MessageConst.PROPERTY_REDIRECT, "1");
+                response.setBody(RemotingSerializable.encode(ImmutableList.of(curQueueRouteData, writableQueueRouteData)));
+                return CompletableFuture.completedFuture(response);
+            } else {
+                // old client, use forward
+                this.logicalQueueHookForward(ctx, writableQueueRouteData, requestHeader, request, response);
+            }
+            if (response.getCode() != -1) {
+                return CompletableFuture.completedFuture(response);
+            } else if (response.getCode() == ResponseCode.ASYNC_AND_RETURN_NULL) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return null;
+        }
+
+        private void logicalQueueHookForward(ChannelHandlerContext ctx,
+            LogicalQueueRouteData writableQueueRouteData,
+            SendMessageRequestHeader requestHeader, RemotingCommand request,
+            RemotingCommand response) {
+            response.setCode(ResponseCode.SUCCESS);
+            requestHeader.setQueueId(writableQueueRouteData.getQueueId());
+            request.writeCustomHeader(requestHeader);
+            String brokerName = writableQueueRouteData.getBrokerName();
+            BrokerController brokerController = AbstractSendMessageProcessor.this.brokerController;
+            String brokerAddr = brokerController.getBrokerAddrByName(brokerName);
+            if (brokerAddr == null) {
+                log.warn("getBrokerAddrByName brokerName={} got null, fallback to queueRouteData.getBrokerAddr()", brokerName);
+                brokerAddr = writableQueueRouteData.getBrokerAddr();
+            }
+            if (brokerAddr == null) {
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                String msg = String.format(Locale.ENGLISH, "unknown brokerName %s", brokerName);
+                response.setRemark(msg);
+                log.warn("logicalQueueHookForward can not look up brokerName={}: {}", brokerName, requestHeader);
+                return;
+            }
+            try {
+                String finalBrokerAddr = brokerAddr;
+                brokerController.getBrokerOuterAPI().forwardRequest(brokerAddr, request, brokerController.getBrokerConfig().getForwardTimeout(), responseFuture -> {
+                    RemotingCommand forwardResponse = responseFuture.getResponseCommand();
+                    if (forwardResponse == null) {
+                        forwardResponse = response;
+                        forwardResponse.setCode(ResponseCode.SYSTEM_ERROR);
+                        if (!responseFuture.isSendRequestOK()) {
+                            forwardResponse.setRemark(String.format(Locale.ENGLISH, "send request failed to %s: %s", finalBrokerAddr, responseFuture.getCause()));
+                        } else if (responseFuture.isTimeout()) {
+                            forwardResponse.setRemark(String.format(Locale.ENGLISH, "wait response from  %s timeout: %dms", finalBrokerAddr, responseFuture.getTimeoutMillis()));
+                        } else {
+                            forwardResponse.setRemark(String.format(Locale.ENGLISH, "unknown reason. addr: %s, timeoutMillis: %d: %s", finalBrokerAddr, responseFuture.getTimeoutMillis(), responseFuture.getCause()));
+                        }
+                    } else {
+                        CommandCustomHeader customHeader = forwardResponse.readCustomHeader();
+                        if (customHeader instanceof SendMessageResponseHeader) {
+                            SendMessageResponseHeader responseHeader = (SendMessageResponseHeader) customHeader;
+                            Integer forwardQueueId = responseHeader.getQueueId();
+                            forwardResponse.addExtField(MessageConst.PROPERTY_FORWARD_QUEUE_ID, forwardQueueId != null ? Integer.toString(forwardQueueId) : "null");
+                            responseHeader.setQueueId(requestHeader.getQueueId());
+                            // queueOffset should not be changed since forwarded broker will add delta to it.
+                        }
+                    }
+                    AbstractSendMessageProcessor.this.doResponse(ctx, request, forwardResponse);
+                });
+                response.setCode(ResponseCode.ASYNC_AND_RETURN_NULL);
+            } catch (Exception e) {
+                response.setCode(ResponseCode.SYSTEM_ERROR);
+                response.setRemark("forward error");
+                log.warn(String.format(Locale.ENGLISH, "logicalQueueHookForward to %s error", brokerAddr), e);
+            }
+        }
+
+        public void hookAfterPut(CompletableFuture<PutMessageResult> putMessageResult) {
+            Optional.ofNullable(putMessageResult).orElse(CompletableFuture.completedFuture(null)).whenComplete((result, throwable) -> {
+                this.inFlyWritingCounter.decrement();
+            });
+        }
+    }
+
+    private final LogicalQueueContext noopLogicalQueueContext = new LogicalQueueContext(null, 0, null, null, null) {
+        @Override public CompletableFuture<RemotingCommand> hookBeforePut(ChannelHandlerContext ctx, SendMessageRequestHeader requestHeader,
+            RemotingCommand request, RemotingCommand response) {
+            return null;
+        }
+
+        @Override public void hookAfterPut(CompletableFuture<PutMessageResult> putMessageResult) {
+        }
+    };
 }

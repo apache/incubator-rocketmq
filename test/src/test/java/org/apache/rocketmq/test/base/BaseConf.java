@@ -17,13 +17,23 @@
 
 package org.apache.rocketmq.test.base;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.apache.log4j.Logger;
 import org.apache.rocketmq.broker.BrokerController;
+import org.apache.rocketmq.client.consumer.MQPullConsumer;
+import org.apache.rocketmq.client.consumer.MQPushConsumer;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.client.producer.MQProducer;
 import org.apache.rocketmq.client.producer.TransactionListener;
 import org.apache.rocketmq.common.MQVersion;
+import org.apache.rocketmq.common.protocol.route.BrokerData;
 import org.apache.rocketmq.namesrv.NamesrvController;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.test.client.rmq.RMQAsyncSendProducer;
@@ -36,21 +46,28 @@ import org.apache.rocketmq.test.factory.ConsumerFactory;
 import org.apache.rocketmq.test.listener.AbstractListener;
 import org.apache.rocketmq.test.util.MQAdmin;
 import org.apache.rocketmq.test.util.MQRandomUtils;
+import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
+import org.apache.rocketmq.tools.admin.MQAdminExt;
+
+import static org.awaitility.Awaitility.await;
 
 public class BaseConf {
-    public static String nsAddr;
-    protected static String broker1Name;
-    protected static String broker2Name;
-    protected static String clusterName;
-    protected static int brokerNum;
-    protected static int waitTime = 5;
-    protected static int consumeTime = 2 * 60 * 1000;
-    protected static NamesrvController namesrvController;
-    protected static BrokerController brokerController1;
-    protected static BrokerController brokerController2;
-    protected static List<Object> mqClients = new ArrayList<Object>();
-    protected static boolean debug = false;
-    private static Logger log = Logger.getLogger(BaseConf.class);
+    public final static String nsAddr;
+    protected final static String broker1Name;
+    protected final static String broker2Name;
+    protected final static String clusterName;
+    protected final static int brokerNum;
+    protected final static int waitTime = 5;
+    protected final static int consumeTime = 2 * 60 * 1000;
+    protected final static int QUEUE_NUMBERS = 8;
+    protected final static NamesrvController namesrvController;
+    protected final static BrokerController brokerController1;
+    protected final static BrokerController brokerController2;
+    protected final static List<BrokerController> brokerControllerList;
+    protected final static Map<String, BrokerController> brokerControllerMap;
+    protected final static List<Object> mqClients = new ArrayList<Object>();
+    protected final static boolean debug = false;
+    private final static Logger log = Logger.getLogger(BaseConf.class);
 
     static {
     	System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
@@ -62,14 +79,32 @@ public class BaseConf {
         broker1Name = brokerController1.getBrokerConfig().getBrokerName();
         broker2Name = brokerController2.getBrokerConfig().getBrokerName();
         brokerNum = 2;
+        brokerControllerList = ImmutableList.of(brokerController1, brokerController2);
+        brokerControllerMap = brokerControllerList.stream().collect(Collectors.toMap(input -> input.getBrokerConfig().getBrokerName(), Function.identity()));
     }
 
     public BaseConf() {
 
     }
 
+    // This method can't be placed in the static block of BaseConf, which seems to lead to a strange dead lock.
+    public static void waitBrokerRegistered(final String nsAddr, final String clusterName) {
+        final DefaultMQAdminExt mqAdminExt = new DefaultMQAdminExt(500);
+        mqAdminExt.setNamesrvAddr(nsAddr);
+        try {
+            mqAdminExt.start();
+            await().atMost(30, TimeUnit.SECONDS).until(() -> {
+                List<BrokerData> brokerDatas = mqAdminExt.examineTopicRouteInfo(clusterName).getBrokerDatas();
+                return brokerDatas.size() == brokerNum;
+            });
+        } catch (MQClientException e) {
+            log.error("init failed, please check BaseConf");
+        }
+        ForkJoinPool.commonPool().execute(mqAdminExt::shutdown);
+    }
+
     public static String initTopic() {
-        String topic = MQRandomUtils.getRandomTopic();
+        String topic = "tt-" + MQRandomUtils.getRandomTopic();
         IntegrationTestBase.initTopic(topic, nsAddr, clusterName);
 
         return topic;
@@ -157,18 +192,26 @@ public class BaseConf {
     }
 
     public static void shutdown() {
-        try {
-            for (Object mqClient : mqClients) {
-                if (mqClient instanceof AbstractMQProducer) {
-                    ((AbstractMQProducer) mqClient).shutdown();
+        ImmutableList<Object> mqClients = ImmutableList.copyOf(BaseConf.mqClients);
+        BaseConf.mqClients.clear();
+        shutdown(mqClients);
+    }
 
-                } else {
-                    ((AbstractMQConsumer) mqClient).shutdown();
-                }
+    public static void shutdown(List<Object> mqClients) {
+        mqClients.forEach(mqClient -> ForkJoinPool.commonPool().execute(() -> {
+            if (mqClient instanceof AbstractMQProducer) {
+                ((AbstractMQProducer) mqClient).shutdown();
+            } else if (mqClient instanceof AbstractMQConsumer) {
+                ((AbstractMQConsumer) mqClient).shutdown();
+            } else if (mqClient instanceof MQAdminExt) {
+                ((MQAdminExt) mqClient).shutdown();
+            } else if (mqClient instanceof MQProducer) {
+                ((MQProducer) mqClient).shutdown();
+            } else if (mqClient instanceof MQPullConsumer) {
+                ((MQPullConsumer) mqClient).shutdown();
+            } else if (mqClient instanceof MQPushConsumer) {
+                ((MQPushConsumer) mqClient).shutdown();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        }));
     }
 }

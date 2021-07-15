@@ -18,18 +18,30 @@ package org.apache.rocketmq.broker.processor;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.broker.BrokerController;
+import org.apache.rocketmq.broker.domain.LogicalQueuesInfoInBroker;
 import org.apache.rocketmq.broker.mqtrace.SendMessageContext;
 import org.apache.rocketmq.broker.mqtrace.SendMessageHook;
 import org.apache.rocketmq.broker.transaction.TransactionalMessageService;
 import org.apache.rocketmq.common.BrokerConfig;
+import org.apache.rocketmq.common.TopicConfig;
+import org.apache.rocketmq.common.constant.PermName;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageDecoder;
 import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.RequestCode;
 import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.header.ConsumerSendMsgBackRequestHeader;
 import org.apache.rocketmq.common.protocol.header.SendMessageRequestHeader;
+import org.apache.rocketmq.common.protocol.route.LogicalQueueRouteData;
+import org.apache.rocketmq.common.protocol.route.MessageQueueRouteState;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
@@ -43,6 +55,7 @@ import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.PutMessageStatus;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
+import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,12 +64,6 @@ import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
-
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -90,6 +97,8 @@ public class SendMessageProcessorTest {
         when(handlerContext.channel()).thenReturn(mockChannel);
         when(messageStore.lookMessageByOffset(anyLong())).thenReturn(new MessageExt());
         sendMessageProcessor = new SendMessageProcessor(brokerController);
+
+        brokerController.getTopicConfigManager().updateTopicConfig(new TopicConfig(topic, 8, 8, PermName.PERM_WRITE|PermName.PERM_READ));
     }
 
     @Test
@@ -220,6 +229,62 @@ public class SendMessageProcessorTest {
         assertThat(response[0].getCode()).isEqualTo(ResponseCode.SUCCESS);
 
     }
+
+    @Test
+    public void testProcessRequest_LogicalQueue() throws Exception {
+        when(messageStore.asyncPutMessage(any(MessageExtBrokerInner.class)))
+            .thenReturn(CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.PUT_OK, new AppendMessageResult(AppendMessageStatus.PUT_OK))));
+
+        LogicalQueuesInfoInBroker logicalQueuesInfo = brokerController.getTopicConfigManager().getOrCreateLogicalQueuesInfo(topic);
+        LogicalQueueRouteData queueRouteData1 = new LogicalQueueRouteData(0, 0, new MessageQueue(topic, brokerController.getBrokerConfig().getBrokerName(), 1), MessageQueueRouteState.Normal, 0, -1, -1, -1, brokerController.getBrokerAddr());
+        logicalQueuesInfo.put(0, Lists.newArrayList(queueRouteData1));
+        logicalQueuesInfo.updateQueueRouteDataByQueueId(queueRouteData1.getQueueId(), queueRouteData1);
+
+        SendMessageRequestHeader requestHeader = createSendMsgRequestHeader();
+        RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.SEND_MESSAGE, requestHeader);
+        request.setBody(new byte[] {'a'});
+        request.makeCustomHeaderToNet();
+
+        // normal
+        RemotingCommand responseToReturn;
+        {
+            CompletableFuture<RemotingCommand> responseFuture = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                responseFuture.complete(invocation.getArgument(0));
+                return null;
+            }).when(handlerContext).writeAndFlush(any(Object.class));
+
+            responseToReturn = sendMessageProcessor.processRequest(handlerContext, request);
+            if (responseToReturn == null) {
+                responseToReturn = responseFuture.get(3, TimeUnit.SECONDS);
+            }
+        }
+
+        assertThat(responseToReturn.getCode()).isEqualTo(ResponseCode.SUCCESS);
+        assertThat(responseToReturn.getOpaque()).isEqualTo(request.getOpaque());
+
+        // read only
+        queueRouteData1.setState(MessageQueueRouteState.ReadOnly);
+        responseToReturn = sendMessageProcessor.processRequest(handlerContext, request);
+        assertThat(responseToReturn.getCode()).isEqualTo(ResponseCode.NO_PERMISSION);
+        assertThat(responseToReturn.getRemark()).contains("not writable");
+
+        // read only and forward
+        logicalQueuesInfo.get(0).add(new LogicalQueueRouteData(0, 100, new MessageQueue(topic, "broker2", 1), MessageQueueRouteState.Normal, 0, -1, -1, -1, brokerController.getBrokerAddr()));
+
+        responseToReturn = sendMessageProcessor.processRequest(handlerContext, request);
+        assertThat(responseToReturn.getCode()).isEqualTo(ResponseCode.SYSTEM_ERROR);
+        assertThat(responseToReturn.getRemark()).contains("forward error");
+
+        // read only and redirect
+        requestHeader = (SendMessageRequestHeader) request.readCustomHeader();
+        requestHeader.setSysFlag(MessageSysFlag.LOGICAL_QUEUE_FLAG);
+        request.makeCustomHeaderToNet();
+        responseToReturn = sendMessageProcessor.processRequest(handlerContext, request);
+        assertThat(responseToReturn.getCode()).isEqualTo(ResponseCode.NO_PERMISSION);
+        assertThat(responseToReturn.getExtFields()).containsKey(MessageConst.PROPERTY_REDIRECT);
+    }
+
     private RemotingCommand createSendTransactionMsgCommand(int requestCode) {
         SendMessageRequestHeader header = createSendMsgRequestHeader();
         int sysFlag = header.getSysFlag();

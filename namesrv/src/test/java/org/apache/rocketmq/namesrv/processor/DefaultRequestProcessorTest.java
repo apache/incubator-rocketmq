@@ -16,16 +16,22 @@
  */
 package org.apache.rocketmq.namesrv.processor;
 
+import com.alibaba.fastjson.JSON;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.rocketmq.common.DataVersion;
+import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.TopicConfig;
-import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.namesrv.NamesrvConfig;
 import org.apache.rocketmq.common.namesrv.RegisterBrokerResult;
 import org.apache.rocketmq.common.protocol.RequestCode;
@@ -34,14 +40,23 @@ import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
 import org.apache.rocketmq.common.protocol.header.namesrv.DeleteKVConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.namesrv.GetKVConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.namesrv.GetKVConfigResponseHeader;
+import org.apache.rocketmq.common.protocol.header.namesrv.GetRouteInfoRequestHeader;
 import org.apache.rocketmq.common.protocol.header.namesrv.PutKVConfigRequestHeader;
 import org.apache.rocketmq.common.protocol.header.namesrv.RegisterBrokerRequestHeader;
 import org.apache.rocketmq.common.protocol.route.BrokerData;
+import org.apache.rocketmq.common.protocol.route.LogicalQueueRouteData;
+import org.apache.rocketmq.common.protocol.route.LogicalQueuesInfo;
+import org.apache.rocketmq.common.protocol.route.LogicalQueuesInfoUnordered;
+import org.apache.rocketmq.common.protocol.route.MessageQueueRouteState;
+import org.apache.rocketmq.common.protocol.route.TopicRouteDataNameSrv;
+import org.apache.rocketmq.common.sysflag.MessageSysFlag;
+import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.namesrv.NamesrvController;
 import org.apache.rocketmq.namesrv.routeinfo.RouteInfoManager;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
+import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import org.assertj.core.util.Maps;
 import org.junit.Before;
 import org.junit.Test;
@@ -182,6 +197,98 @@ public class DefaultRequestProcessorTest {
 
         assertThat((Map) brokerAddrTable.get(routes))
             .contains(new HashMap.SimpleEntry("broker", broker));
+    }
+
+    @Test
+    public void testProcessRequest_RegisterBrokerLogicalQueue() throws Exception {
+        String cluster = "cluster";
+        String broker1Name = "broker1";
+        String broker1Addr = "10.10.1.1";
+        String broker2Name = "broker2";
+        String broker2Addr = "10.10.1.2";
+        String topic = "foobar";
+
+        LogicalQueueRouteData queueRouteData1 = new LogicalQueueRouteData(0, 0, new MessageQueue(topic, broker1Name, 0), MessageQueueRouteState.ReadOnly, 0, 10, 100, 100, broker1Addr);
+        {
+            RegisterBrokerRequestHeader header = new RegisterBrokerRequestHeader();
+            header.setBrokerName(broker1Name);
+            RemotingCommand request = RemotingCommand.createRequestCommand(
+                RequestCode.REGISTER_BROKER, header);
+            request.addExtField("brokerName", broker1Name);
+            request.addExtField("brokerAddr", broker1Addr);
+            request.addExtField("clusterName", cluster);
+            request.addExtField("haServerAddr", "10.10.2.1");
+            request.addExtField("brokerId", String.valueOf(MixAll.MASTER_ID));
+            TopicConfigSerializeWrapper topicConfigSerializeWrapper = new TopicConfigSerializeWrapper();
+            topicConfigSerializeWrapper.setTopicConfigTable(new ConcurrentHashMap<>(Collections.singletonMap(topic, new TopicConfig(topic))));
+            topicConfigSerializeWrapper.setLogicalQueuesInfoMap(Maps.newHashMap(topic, new LogicalQueuesInfo(Collections.singletonMap(0, Lists.newArrayList(
+                queueRouteData1
+            )))));
+            topicConfigSerializeWrapper.setDataVersion(new DataVersion());
+            request.setBody(RemotingSerializable.encode(topicConfigSerializeWrapper));
+
+            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+            when(ctx.channel()).thenReturn(null);
+
+            RemotingCommand response = defaultRequestProcessor.processRequest(ctx, request);
+
+            assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+            assertThat(response.getRemark()).isNull();
+        }
+        LogicalQueueRouteData queueRouteData2 = new LogicalQueueRouteData(0, 100, new MessageQueue(topic, broker2Name, 0), MessageQueueRouteState.Normal, 0, -1, -1, -1, broker2Addr);
+        LogicalQueueRouteData queueRouteData3 = new LogicalQueueRouteData(1, 100, new MessageQueue(topic, broker2Name, 0), MessageQueueRouteState.Normal, 0, -1, -1, -1, broker2Addr);
+        {
+            RegisterBrokerRequestHeader header = new RegisterBrokerRequestHeader();
+            header.setBrokerName(broker2Name);
+            RemotingCommand request = RemotingCommand.createRequestCommand(
+                RequestCode.REGISTER_BROKER, header);
+            request.addExtField("brokerName", broker2Name);
+            request.addExtField("brokerAddr", broker2Addr);
+            request.addExtField("clusterName", cluster);
+            request.addExtField("haServerAddr", "10.10.2.1");
+            request.addExtField("brokerId", String.valueOf(MixAll.MASTER_ID));
+            TopicConfigSerializeWrapper topicConfigSerializeWrapper = new TopicConfigSerializeWrapper();
+            topicConfigSerializeWrapper.setTopicConfigTable(new ConcurrentHashMap<>(Collections.singletonMap(topic, new TopicConfig(topic))));
+            topicConfigSerializeWrapper.setLogicalQueuesInfoMap(Maps.newHashMap(topic, new LogicalQueuesInfo(ImmutableMap.of(
+                0, Collections.singletonList(queueRouteData2),
+                1, Collections.singletonList(queueRouteData3)
+            ))));
+            topicConfigSerializeWrapper.setDataVersion(new DataVersion());
+            request.setBody(RemotingSerializable.encode(topicConfigSerializeWrapper));
+
+            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+            when(ctx.channel()).thenReturn(null);
+
+            RemotingCommand response = defaultRequestProcessor.processRequest(ctx, request);
+
+            assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+            assertThat(response.getRemark()).isNull();
+        }
+
+        {
+            GetRouteInfoRequestHeader header = new GetRouteInfoRequestHeader();
+            header.setTopic(topic);
+            header.setSysFlag(MessageSysFlag.LOGICAL_QUEUE_FLAG);
+            RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, header);
+            request.makeCustomHeaderToNet();
+
+            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+            when(ctx.channel()).thenReturn(null);
+
+            RemotingCommand response = defaultRequestProcessor.processRequest(ctx, request);
+
+            assertThat(response.getCode()).isEqualTo(ResponseCode.SUCCESS);
+
+            TopicRouteDataNameSrv topicRouteDataNameSrv = JSON.parseObject(response.getBody(), TopicRouteDataNameSrv.class);
+            assertThat(topicRouteDataNameSrv).isNotNull();
+            LogicalQueuesInfoUnordered logicalQueuesInfoUnordered = new LogicalQueuesInfoUnordered();
+            logicalQueuesInfoUnordered.put(0, ImmutableMap.of(
+                new LogicalQueuesInfoUnordered.Key(queueRouteData1.getBrokerName(), queueRouteData1.getQueueId(), queueRouteData1.getOffsetDelta()), queueRouteData1,
+                new LogicalQueuesInfoUnordered.Key(queueRouteData2.getBrokerName(), queueRouteData2.getQueueId(), queueRouteData2.getOffsetDelta()), queueRouteData2
+            ));
+            logicalQueuesInfoUnordered.put(1, ImmutableMap.of(new LogicalQueuesInfoUnordered.Key(queueRouteData3.getBrokerName(), queueRouteData3.getQueueId(), queueRouteData3.getOffsetDelta()), queueRouteData3));
+            assertThat(topicRouteDataNameSrv.getLogicalQueuesInfoUnordered()).isEqualTo(logicalQueuesInfoUnordered);
+        }
     }
 
     @Test

@@ -110,6 +110,11 @@ public abstract class AbstractPluginMessageStore implements MessageStore {
     }
 
     @Override
+    public long getMaxOffsetInQueue(String topic, int queueId, boolean committed) {
+        return next.getMaxOffsetInQueue(topic, queueId, committed);
+    }
+
+    @Override
     public long getMinOffsetInQueue(String topic, int queueId) {
         return next.getMinOffsetInQueue(topic, queueId);
     }

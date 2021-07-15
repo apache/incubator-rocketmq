@@ -29,6 +29,7 @@ import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 import org.apache.rocketmq.tools.command.CommandUtil;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
+import org.apache.rocketmq.tools.command.logicalqueue.UpdateTopicLogicalQueueMappingCommand;
 
 public class UpdateTopicSubCommand implements SubCommand {
 
@@ -64,6 +65,10 @@ public class UpdateTopicSubCommand implements SubCommand {
         options.addOption(opt);
 
         opt = new Option("w", "writeQueueNums", true, "set write queue nums");
+        opt.setRequired(false);
+        options.addOption(opt);
+
+        opt = new Option("lq", "logicalQueue", true, "set logical queue nums");
         opt.setRequired(false);
         options.addOption(opt);
 
@@ -132,7 +137,17 @@ public class UpdateTopicSubCommand implements SubCommand {
             }
             topicConfig.setOrder(isOrder);
 
+            boolean useLogicalQueue = false;
+            if (commandLine.hasOption("lq")) {
+                useLogicalQueue = Boolean.parseBoolean(commandLine.getOptionValue("lq").trim());
+            }
+
             if (commandLine.hasOption('b')) {
+                if (useLogicalQueue) {
+                    System.out.printf("-lq and -b can not be used together.%n");
+                    return;
+                }
+
                 String addr = commandLine.getOptionValue('b').trim();
 
                 defaultMQAdminExt.start();
@@ -156,6 +171,7 @@ public class UpdateTopicSubCommand implements SubCommand {
 
                 Set<String> masterSet =
                     CommandUtil.fetchMasterAddrByClusterName(defaultMQAdminExt, clusterName);
+
                 for (String addr : masterSet) {
                     defaultMQAdminExt.createAndUpdateTopicConfig(addr, topicConfig);
                     System.out.printf("create topic to %s success.%n", addr);
@@ -177,6 +193,10 @@ public class UpdateTopicSubCommand implements SubCommand {
                 }
 
                 System.out.printf("%s", topicConfig);
+
+                if (useLogicalQueue) {
+                    new UpdateTopicLogicalQueueMappingCommand().execute(defaultMQAdminExt, topicConfig.getTopicName(), masterSet);
+                }
                 return;
             }
 

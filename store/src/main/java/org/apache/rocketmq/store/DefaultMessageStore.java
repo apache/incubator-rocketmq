@@ -28,12 +28,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -117,6 +119,8 @@ public class DefaultMessageStore implements MessageStore {
 
     private final ScheduledExecutorService diskCheckScheduledExecutorService =
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("DiskCheckScheduledThread"));
+
+    private final List<CleanFilesHook> cleanFilesHooks = new CopyOnWriteArrayList<>();
 
     public DefaultMessageStore(final MessageStoreConfig messageStoreConfig, final BrokerStatsManager brokerStatsManager,
         final MessageArrivingListener messageArrivingListener, final BrokerConfig brokerConfig) throws IOException {
@@ -720,10 +724,20 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public long getMaxOffsetInQueue(String topic, int queueId) {
-        ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
-        if (logic != null) {
-            long offset = logic.getMaxOffsetInQueue();
-            return offset;
+        return getMaxOffsetInQueue(topic, queueId, true);
+    }
+
+    public long getMaxOffsetInQueue(String topic, int queueId, boolean committed) {
+        if (committed) {
+            ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
+            if (logic != null) {
+                return logic.getMaxOffsetInQueue();
+            }
+        } else {
+            Long offset = this.commitLog.getTopicQueueTable().get(topic + "-" + queueId);
+            if (offset != null) {
+                return offset;
+            }
         }
 
         return 0;
@@ -1301,12 +1315,23 @@ public class DefaultMessageStore implements MessageStore {
         log.info(fileName + (result ? " create OK" : " already exists"));
     }
 
+    public void registerCleanFileHook(CleanFilesHook hook) {
+        this.cleanFilesHooks.add(hook);
+    }
+
     private void addScheduleTask() {
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                DefaultMessageStore.this.cleanFilesPeriodically();
+                long deleteCount = DefaultMessageStore.this.cleanFilesPeriodically();
+                DefaultMessageStore.this.cleanFilesHooks.forEach(hook -> {
+                    try {
+                        hook.execute(DefaultMessageStore.this, deleteCount);
+                    } catch (Throwable t) {
+                        log.error("execute CleanFilesHook[{}] error", hook.getName(), t);
+                    }
+                });
             }
         }, 1000 * 60, this.messageStoreConfig.getCleanResourceInterval(), TimeUnit.MILLISECONDS);
 
@@ -1351,9 +1376,11 @@ public class DefaultMessageStore implements MessageStore {
         }, 1000L, 10000L, TimeUnit.MILLISECONDS);
     }
 
-    private void cleanFilesPeriodically() {
-        this.cleanCommitLogService.run();
-        this.cleanConsumeQueueService.run();
+    private long cleanFilesPeriodically() {
+        long deleteCount = 0L;
+        deleteCount += this.cleanCommitLogService.run();
+        deleteCount += this.cleanConsumeQueueService.run();
+        return deleteCount;
     }
 
     private void checkSelf() {
@@ -1611,17 +1638,19 @@ public class DefaultMessageStore implements MessageStore {
             DefaultMessageStore.log.info("executeDeleteFilesManually was invoked");
         }
 
-        public void run() {
+        public long run() {
+            int deleteCount = 0;
             try {
-                this.deleteExpiredFiles();
+                deleteCount = this.deleteExpiredFiles();
 
                 this.redeleteHangedFile();
             } catch (Throwable e) {
                 DefaultMessageStore.log.warn(this.getServiceName() + " service has exception. ", e);
             }
+            return deleteCount;
         }
 
-        private void deleteExpiredFiles() {
+        private int deleteExpiredFiles() {
             int deleteCount = 0;
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
             int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
@@ -1654,6 +1683,7 @@ public class DefaultMessageStore implements MessageStore {
                     log.warn("disk space will be full soon, but delete file failed.");
                 }
             }
+            return deleteCount;
         }
 
         private void redeleteHangedFile() {
@@ -1775,17 +1805,20 @@ public class DefaultMessageStore implements MessageStore {
     class CleanConsumeQueueService {
         private long lastPhysicalMinOffset = 0;
 
-        public void run() {
+        public long run() {
+            long deleteCount = 0;
             try {
-                this.deleteExpiredFiles();
+                deleteCount = this.deleteExpiredFiles();
             } catch (Throwable e) {
                 DefaultMessageStore.log.warn(this.getServiceName() + " service has exception. ", e);
             }
+            return deleteCount;
         }
 
-        private void deleteExpiredFiles() {
+        private long deleteExpiredFiles() {
             int deleteLogicsFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteConsumeQueueFilesInterval();
 
+            long deleteCountSum = 0L;
             long minOffset = DefaultMessageStore.this.commitLog.getMinOffset();
             if (minOffset > this.lastPhysicalMinOffset) {
                 this.lastPhysicalMinOffset = minOffset;
@@ -1795,7 +1828,7 @@ public class DefaultMessageStore implements MessageStore {
                 for (ConcurrentMap<Integer, ConsumeQueue> maps : tables.values()) {
                     for (ConsumeQueue logic : maps.values()) {
                         int deleteCount = logic.deleteExpiredFile(minOffset);
-
+                        deleteCountSum += deleteCount;
                         if (deleteCount > 0 && deleteLogicsFilesInterval > 0) {
                             try {
                                 Thread.sleep(deleteLogicsFilesInterval);
@@ -1807,6 +1840,7 @@ public class DefaultMessageStore implements MessageStore {
 
                 DefaultMessageStore.this.indexService.deleteExpiredFile(minOffset);
             }
+            return deleteCountSum;
         }
 
         public String getServiceName() {

@@ -14,27 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.rocketmq.tools.command;
+package org.apache.rocketmq.store;
 
-public class SubCommandException extends Exception {
-    private static final long serialVersionUID = 0L;
+public interface CleanFilesHook {
+    void execute(DefaultMessageStore defaultMessageStore, long deleteCount);
 
-    /**
-     * @param msg Message.
-     */
-    public SubCommandException(String msg) {
-        super(msg);
-    }
-
-    public SubCommandException(String format, Object... args) {
-        super(String.format(format, args));
-    }
-
-    /**
-     * @param msg Message.
-     * @param cause Cause.
-     */
-    public SubCommandException(String msg, Throwable cause) {
-        super(msg, cause);
-    }
+    String getName();
 }

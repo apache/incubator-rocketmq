@@ -66,6 +66,11 @@
         </encoder>
     </appender>
 
+    <logger name="STDOUT" additivity="false">
+        <level value="INFO"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
     <logger name="RocketmqTools" additivity="false">
         <level value="INFO"/>
         <appender-ref ref="RocketmqToolsAppender"/>

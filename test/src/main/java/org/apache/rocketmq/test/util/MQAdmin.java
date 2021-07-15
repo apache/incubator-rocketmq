@@ -20,6 +20,7 @@ package org.apache.rocketmq.test.util;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
 import org.apache.log4j.Logger;
 import org.apache.rocketmq.common.admin.TopicStatsTable;
 import org.apache.rocketmq.common.protocol.body.ClusterInfo;
@@ -60,7 +61,7 @@ public class MQAdmin {
             }
         }
 
-        mqAdminExt.shutdown();
+        ForkJoinPool.commonPool().execute(mqAdminExt::shutdown);
         return createResult;
     }
 
@@ -99,7 +100,7 @@ public class MQAdmin {
             createResult = false;
             e.printStackTrace();
         }
-        mqAdminExt.shutdown();
+        ForkJoinPool.commonPool().execute(mqAdminExt::shutdown);
         return createResult;
     }
 
@@ -113,7 +114,7 @@ public class MQAdmin {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        mqAdminExt.shutdown();
+        ForkJoinPool.commonPool().execute(mqAdminExt::shutdown);
         return clusterInfo;
     }
 
@@ -159,7 +160,7 @@ public class MQAdmin {
             createResult = false;
             e.printStackTrace();
         }
-        mqAdminExt.shutdown();
+        ForkJoinPool.commonPool().execute(mqAdminExt::shutdown);
     }
 
 }
