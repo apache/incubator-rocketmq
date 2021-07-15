@@ -805,22 +805,13 @@ public class DefaultMessageStore implements MessageStore {
         return this.storeStatsService.toString();
     }
 
-    private String getStorePathPhysic() {
-        String storePathPhysic = "";
-        if (DefaultMessageStore.this.getMessageStoreConfig().isEnableDLegerCommitLog()) {
-            storePathPhysic = ((DLedgerCommitLog)DefaultMessageStore.this.getCommitLog()).getdLedgerServer().getdLedgerConfig().getDataStorePath();
-        } else {
-            storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
-        }
-        return storePathPhysic;
-    }
-
     @Override
     public HashMap<String, String> getRuntimeInfo() {
         HashMap<String, String> result = this.storeStatsService.getRuntimeInfo();
 
         {
-            double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(getStorePathPhysic());
+            String storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
+            double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
             result.put(RunningStats.commitLogDiskRatio.name(), String.valueOf(physicRatio));
 
         }
@@ -1687,7 +1678,8 @@ public class DefaultMessageStore implements MessageStore {
             cleanImmediately = false;
 
             {
-                double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(getStorePathPhysic());
+                String storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
+                double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
                 if (physicRatio > diskSpaceWarningLevelRatio) {
                     boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
                     if (diskok) {
@@ -1747,7 +1739,8 @@ public class DefaultMessageStore implements MessageStore {
             this.manualDeleteFileSeveralTimes = manualDeleteFileSeveralTimes;
         }
         public boolean isSpaceFull() {
-            double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(getStorePathPhysic());
+            String storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
+            double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
             double ratio = DefaultMessageStore.this.getMessageStoreConfig().getDiskMaxUsedSpaceRatio() / 100.0;
             if (physicRatio > ratio) {
                 DefaultMessageStore.log.info("physic disk of commitLog used: " + physicRatio);
