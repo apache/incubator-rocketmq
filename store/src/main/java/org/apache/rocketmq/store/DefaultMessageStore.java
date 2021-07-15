@@ -615,7 +615,7 @@ public class DefaultMessageStore implements MessageStore {
                             int sizePy = bufferConsumeQueue.getByteBuffer().getInt();
                             long tagsCode = bufferConsumeQueue.getByteBuffer().getLong();
 
-                            maxPhyOffsetPulling = offsetPy;
+                            maxPhyOffsetPulling = offsetPy + sizePy;
 
                             if (nextPhyFileStartOffset != Long.MIN_VALUE) {
                                 if (offsetPy < nextPhyFileStartOffset)
