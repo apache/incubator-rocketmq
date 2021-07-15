@@ -215,8 +215,8 @@ public class CommitLog {
             this.mappedFileQueue.truncateDirtyFiles(processOffset);
 
             // Clear ConsumeQueue redundant data
-            if (maxPhyOffsetOfConsumeQueue >= processOffset) {
-                log.warn("maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset);
+            if (maxPhyOffsetOfConsumeQueue > processOffset) {
+                log.warn("maxPhyOffsetOfConsumeQueue({}) > processOffset({}), truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset);
                 this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
             }
         } else {
@@ -493,8 +493,8 @@ public class CommitLog {
             this.mappedFileQueue.truncateDirtyFiles(processOffset);
 
             // Clear ConsumeQueue redundant data
-            if (maxPhyOffsetOfConsumeQueue >= processOffset) {
-                log.warn("maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset);
+            if (maxPhyOffsetOfConsumeQueue > processOffset) {
+                log.warn("maxPhyOffsetOfConsumeQueue({}) > processOffset({}), truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset);
                 this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
             }
         }
