@@ -417,7 +417,7 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
 
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetBrokerAclConfigResponseHeader.class);
 
-        final GetBrokerAclConfigResponseHeader responseHeader = (GetBrokerAclConfigResponseHeader)response.readCustomHeader();
+        final GetBrokerAclConfigResponseHeader responseHeader = (GetBrokerAclConfigResponseHeader) response.readCustomHeader();
 
         try {
             AccessValidator accessValidator = this.brokerController.getAccessValidatorMap().get(PlainAccessValidator.class);
@@ -878,6 +878,11 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
             }
 
             {
+                if (!this.brokerController.getSubscriptionGroupManager().getSubscriptionGroupTable().containsKey(requestHeader.getConsumerGroup())) {
+                    log.warn("consumeStats, the consumer group[{}] not exist", requestHeader.getConsumerGroup());
+                    continue;
+                }
+
                 SubscriptionData findSubscriptionData =
                     this.brokerController.getConsumerManager().findSubscriptionData(requestHeader.getConsumerGroup(), topic);
 
