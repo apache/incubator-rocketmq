@@ -57,6 +57,7 @@ public class StoreStatsService extends ServiceThread {
     private final LinkedList<CallSnapshot> getTimesMissList = new LinkedList<CallSnapshot>();
     private final LinkedList<CallSnapshot> transferedMsgCountList = new LinkedList<CallSnapshot>();
     private volatile AtomicLong[] putMessageDistributeTime;
+    private volatile AtomicLong[] lastPutMessageDistributeTime;
     private long messageStoreBootTimestamp = System.currentTimeMillis();
     private volatile long putMessageEntireTimeMax = 0;
     private volatile long getMessageEntireTimeMax = 0;
@@ -80,11 +81,11 @@ public class StoreStatsService extends ServiceThread {
             next[i] = new AtomicLong(0);
         }
 
-        AtomicLong[] old = this.putMessageDistributeTime;
+        this.lastPutMessageDistributeTime = this.putMessageDistributeTime;
 
         this.putMessageDistributeTime = next;
 
-        return old;
+        return lastPutMessageDistributeTime;
     }
 
     public long getPutMessageEntireTimeMax() {
@@ -298,7 +299,7 @@ public class StoreStatsService extends ServiceThread {
     }
 
     private String putMessageDistributeTimeToString() {
-        final AtomicLong[] times = this.putMessageDistributeTime;
+        final AtomicLong[] times = this.lastPutMessageDistributeTime;
         if (null == times)
             return null;
 
