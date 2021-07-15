@@ -14,29 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.rocketmq.remoting.protocol;
 
-public enum SerializeType {
-    JSON((byte) 0),
-    ROCKETMQ((byte) 1);
+import org.junit.Assert;
+import org.junit.Test;
 
-    private byte code;
+public class SerializeTypeTest {
 
-    SerializeType(byte code) {
-        this.code = code;
-    }
+    @Test(expected = IllegalArgumentException.class)
+    public void testSerializeType() {
+        // the right code
+        byte typeCode1 = (byte) 0;
+        byte typeCode2 = (byte) 1;
+        // the wrong code
+        byte typeCode3 = (byte) 2;
 
-    public static SerializeType valueOf(byte code) {
-        for (SerializeType serializeType : SerializeType.values()) {
-            if (serializeType.getCode() == code) {
-                return serializeType;
-            }
-        }
-        throw new IllegalArgumentException("Can not match right SerializeType by the code: " + code);
-    }
+        Assert.assertEquals(SerializeType.valueOf(typeCode1), SerializeType.JSON);
+        Assert.assertEquals(SerializeType.valueOf(typeCode2), SerializeType.ROCKETMQ);
 
-    public byte getCode() {
-        return code;
+        // will cause Exception
+        SerializeType.valueOf(typeCode3);
     }
 }
