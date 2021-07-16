@@ -52,6 +52,8 @@ public class NettyLogger {
 
         private InternalLogger logger = null;
 
+        private static final String EXCEPTION_MESSAGE = "Unexpected exception:";
+
         public NettyBridgeLogger(String name) {
             logger = InternalLoggerFactory.getLogger(name);
         }
@@ -162,6 +164,25 @@ public class NettyLogger {
         }
 
         @Override
+        public void log(InternalLogLevel internalLogLevel, Throwable throwable) {
+            if (internalLogLevel.equals(InternalLogLevel.DEBUG)) {
+                logger.debug(EXCEPTION_MESSAGE, throwable);
+            }
+            if (internalLogLevel.equals(InternalLogLevel.TRACE)) {
+                logger.info(EXCEPTION_MESSAGE, throwable);
+            }
+            if (internalLogLevel.equals(InternalLogLevel.INFO)) {
+                logger.info(EXCEPTION_MESSAGE, throwable);
+            }
+            if (internalLogLevel.equals(InternalLogLevel.WARN)) {
+                logger.warn(EXCEPTION_MESSAGE, throwable);
+            }
+            if (internalLogLevel.equals(InternalLogLevel.ERROR)) {
+                logger.error(EXCEPTION_MESSAGE, throwable);
+            }
+        }
+
+        @Override
         public boolean isTraceEnabled() {
             return isEnabled(InternalLogLevel.TRACE);
         }
@@ -189,6 +210,11 @@ public class NettyLogger {
         @Override
         public void trace(String var1, Throwable var2) {
             logger.info(var1, var2);
+        }
+
+        @Override
+        public void trace(Throwable var1) {
+            logger.info(EXCEPTION_MESSAGE, var1);
         }
 
         @Override
@@ -222,6 +248,11 @@ public class NettyLogger {
         }
 
         @Override
+        public void debug(Throwable var1) {
+            logger.debug(EXCEPTION_MESSAGE, var1);
+        }
+
+        @Override
         public boolean isInfoEnabled() {
             return isEnabled(InternalLogLevel.INFO);
         }
@@ -249,6 +280,11 @@ public class NettyLogger {
         @Override
         public void info(String var1, Throwable var2) {
             logger.info(var1, var2);
+        }
+
+        @Override
+        public void info(Throwable var1) {
+            logger.info(EXCEPTION_MESSAGE, var1);
         }
 
         @Override
@@ -282,6 +318,11 @@ public class NettyLogger {
         }
 
         @Override
+        public void warn(Throwable var1) {
+            logger.warn(EXCEPTION_MESSAGE, var1);
+        }
+
+        @Override
         public boolean isErrorEnabled() {
             return isEnabled(InternalLogLevel.ERROR);
         }
@@ -309,6 +350,11 @@ public class NettyLogger {
         @Override
         public void error(String var1, Throwable var2) {
             logger.error(var1, var2);
+        }
+
+        @Override
+        public void error(Throwable var1) {
+            logger.error(EXCEPTION_MESSAGE, var1);
         }
     }
 
