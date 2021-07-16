@@ -123,7 +123,7 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
                     throw new MQClientException("The adminExt group[" + this.defaultMQAdminExt.getAdminExtGroup()
-                        + "] has created already, specifed another name please."
+                        + "] has created already, specified another name please."
                         + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL), null);
                 }
 
