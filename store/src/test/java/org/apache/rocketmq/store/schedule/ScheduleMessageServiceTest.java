@@ -111,8 +111,27 @@ public class ScheduleMessageServiceTest {
         messageStore.start();
         scheduleMessageService = messageStore.getScheduleMessageService();
     }
-
-
+    @Test
+    public void testCalcDelayLevel() {
+        long delayMillis = 8000L;
+        int level = messageStore.getScheduleMessageService().calcDelayTimeLevel(delayMillis);
+        assertThat(level).isEqualTo(delayLevel);
+        delayMillis = 9000L;
+        level = messageStore.getScheduleMessageService().calcDelayTimeLevel(delayMillis);
+        assertThat(level).isEqualTo(delayLevel);
+        delayMillis = 7000L;
+        level = messageStore.getScheduleMessageService().calcDelayTimeLevel(delayMillis);
+        assertThat(level).isEqualTo(delayLevel - 1);
+    }
+    
+    @Test
+    public void startDeliverTimeTest() throws Exception {
+        MessageExtBrokerInner msg = buildMessage();
+        msg.setStartDeliverTime(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(20L));
+        PutMessageResult result = messageStore.putMessage(msg);
+        assertThat(result.isOk()).isTrue();
+    }
+    
     @Test
     public void deliverDelayedMessageTimerTaskTest() throws Exception {
         assertThat(messageStore.getMessageStoreConfig().isEnableScheduleMessageStats()).isTrue();

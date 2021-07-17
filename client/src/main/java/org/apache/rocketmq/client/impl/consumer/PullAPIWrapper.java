@@ -92,6 +92,7 @@ public class PullAPIWrapper {
                 FilterMessageContext filterMessageContext = new FilterMessageContext();
                 filterMessageContext.setUnitMode(unitMode);
                 filterMessageContext.setMsgList(msgListFilterAgain);
+                filterMessageContext.setMQClientFactory(mQClientFactory);
                 this.executeHook(filterMessageContext);
             }
 

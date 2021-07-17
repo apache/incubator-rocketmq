@@ -16,8 +16,10 @@
  */
 package org.apache.rocketmq.client.hook;
 
+import org.apache.rocketmq.client.exception.MQClientException;
+
 public interface FilterMessageHook {
     String hookName();
 
-    void filterMessage(final FilterMessageContext context);
+    void filterMessage(final FilterMessageContext context) throws MQClientException;
 }

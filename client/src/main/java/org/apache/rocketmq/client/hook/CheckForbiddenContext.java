@@ -17,6 +17,7 @@
 package org.apache.rocketmq.client.hook;
 
 import org.apache.rocketmq.client.impl.CommunicationMode;
+import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageQueue;
@@ -32,6 +33,7 @@ public class CheckForbiddenContext {
     private Exception exception;
     private Object arg;
     private boolean unitMode = false;
+    private DefaultMQProducerImpl producer;
 
     public String getGroup() {
         return group;
@@ -111,6 +113,14 @@ public class CheckForbiddenContext {
 
     public void setNameSrvAddr(String nameSrvAddr) {
         this.nameSrvAddr = nameSrvAddr;
+    }
+
+    public DefaultMQProducerImpl getProducer() {
+        return producer;
+    }
+
+    public void setProducer(DefaultMQProducerImpl producer) {
+        this.producer = producer;
     }
 
     @Override

@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.client.utils;
 
+
 import org.apache.rocketmq.client.common.ClientErrorCode;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.MixAll;
@@ -24,7 +25,9 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageAccessor;
 import org.apache.rocketmq.common.message.MessageConst;
 
+
 public class MessageUtil {
+    
     public static Message createReplyMessage(final Message requestMessage, final byte[] body) throws MQClientException {
         if (requestMessage != null) {
             Message replyMessage = new Message();
@@ -52,4 +55,5 @@ public class MessageUtil {
     public static String getReplyToClient(final Message msg) {
         return msg.getProperty(MessageConst.PROPERTY_MESSAGE_REPLY_TO_CLIENT);
     }
+    
 }
