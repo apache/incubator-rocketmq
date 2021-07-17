@@ -58,6 +58,8 @@ import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.StoreStatsService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
+import static org.apache.rocketmq.common.protocol.NamespaceUtil.isDLQTopic;
+
 /**
  * Store all metadata downtime for recovery, data protection reliability
  */
@@ -383,7 +385,7 @@ public class DLedgerCommitLog extends CommitLog {
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
             || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
-            if (msg.getDelayTimeLevel() > 0) {
+            if (msg.getDelayTimeLevel() > 0 && !isDLQTopic(msg.getTopic())) {
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
                 }
