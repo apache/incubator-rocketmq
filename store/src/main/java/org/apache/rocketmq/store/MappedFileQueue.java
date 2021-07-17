@@ -75,30 +75,27 @@ public class MappedFileQueue {
     }
 
     public MappedFile getMappedFileByTime(final long timestamp) {
-        Object[] mfs = this.copyMappedFiles(0);
+        MappedFile[] mfs = this.copyMappedFiles(0);
 
         if (null == mfs)
             return null;
 
         for (int i = 0; i < mfs.length; i++) {
-            MappedFile mappedFile = (MappedFile) mfs[i];
+            MappedFile mappedFile = mfs[i];
             if (mappedFile.getLastModifiedTimestamp() >= timestamp) {
                 return mappedFile;
             }
         }
 
-        return (MappedFile) mfs[mfs.length - 1];
+        return mfs[mfs.length - 1];
     }
 
-    private Object[] copyMappedFiles(final int reservedMappedFiles) {
-        Object[] mfs;
-
+    private MappedFile[] copyMappedFiles(final int reservedMappedFiles) {
         if (this.mappedFiles.size() <= reservedMappedFiles) {
             return null;
+        } else {
+            return this.mappedFiles.toArray(new MappedFile[0]);
         }
-
-        mfs = this.mappedFiles.toArray();
-        return mfs;
     }
 
     public void truncateDirtyFiles(long offset) {
@@ -337,7 +334,7 @@ public class MappedFileQueue {
         final int deleteFilesInterval,
         final long intervalForcibly,
         final boolean cleanImmediately) {
-        Object[] mfs = this.copyMappedFiles(0);
+        MappedFile[] mfs = this.copyMappedFiles(0);
 
         if (null == mfs)
             return 0;
@@ -347,7 +344,7 @@ public class MappedFileQueue {
         List<MappedFile> files = new ArrayList<MappedFile>();
         if (null != mfs) {
             for (int i = 0; i < mfsLength; i++) {
-                MappedFile mappedFile = (MappedFile) mfs[i];
+                MappedFile mappedFile = mfs[i];
                 long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
                 if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
                     if (mappedFile.destroy(intervalForcibly)) {
@@ -380,7 +377,7 @@ public class MappedFileQueue {
     }
 
     public int deleteExpiredFileByOffset(long offset, int unitSize) {
-        Object[] mfs = this.copyMappedFiles(0);
+        MappedFile[] mfs = this.copyMappedFiles(0);
 
         List<MappedFile> files = new ArrayList<MappedFile>();
         int deleteCount = 0;
@@ -390,7 +387,7 @@ public class MappedFileQueue {
 
             for (int i = 0; i < mfsLength; i++) {
                 boolean destroy;
-                MappedFile mappedFile = (MappedFile) mfs[i];
+                MappedFile mappedFile = mfs[i];
                 SelectMappedBufferResult result = mappedFile.selectMappedBuffer(this.mappedFileSize - unitSize);
                 if (result != null) {
                     long maxOffsetInLogicQueue = result.getByteBuffer().getLong();
@@ -526,10 +523,10 @@ public class MappedFileQueue {
     public long getMappedMemorySize() {
         long size = 0;
 
-        Object[] mfs = this.copyMappedFiles(0);
+        MappedFile[] mfs = this.copyMappedFiles(0);
         if (mfs != null) {
-            for (Object mf : mfs) {
-                if (((ReferenceResource) mf).isAvailable()) {
+            for (MappedFile mf : mfs) {
+                if (mf.isAvailable()) {
                     size += this.mappedFileSize;
                 }
             }
