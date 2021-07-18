@@ -678,19 +678,17 @@ public class CommitLog {
         });
     }
 
-    public CompletableFuture<PutMessageResult> asyncPutMessages(final MessageExtBatch messageExtBatch) {
+    public PutMessageResult appendPutMessagesAndTrackStats(final MessageExtBatch messageExtBatch) {
         messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
         AppendMessageResult result;
-
-        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
         final int tranType = MessageSysFlag.getTransactionValue(messageExtBatch.getSysFlag());
 
         if (tranType != MessageSysFlag.TRANSACTION_NOT_TYPE) {
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
+            return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
         }
         if (messageExtBatch.getDelayTimeLevel() > 0) {
-            return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null));
+            return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
         }
 
         long elapsedTimeInLock = 0;
@@ -716,8 +714,7 @@ public class CommitLog {
             }
             if (null == mappedFile) {
                 log.error("Create mapped file1 error, topic: {} clientAddr: {}", messageExtBatch.getTopic(), messageExtBatch.getBornHostString());
-                beginTimeInLock = 0;
-                return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
+                return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null);
             }
 
             result = mappedFile.appendMessages(messageExtBatch, this.appendMessageCallback);
@@ -731,24 +728,22 @@ public class CommitLog {
                     if (null == mappedFile) {
                         // XXX: warn and notify me
                         log.error("Create mapped file2 error, topic: {} clientAddr: {}", messageExtBatch.getTopic(), messageExtBatch.getBornHostString());
-                        beginTimeInLock = 0;
-                        return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result));
+                        return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result);
                     }
                     result = mappedFile.appendMessages(messageExtBatch, this.appendMessageCallback);
                     break;
                 case MESSAGE_SIZE_EXCEEDED:
                 case PROPERTIES_SIZE_EXCEEDED:
-                    beginTimeInLock = 0;
-                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result));
+                    return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result);
                 case UNKNOWN_ERROR:
+                    return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
                 default:
-                    beginTimeInLock = 0;
-                    return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result));
+                    return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
             }
 
             elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
-            beginTimeInLock = 0;
         } finally {
+            beginTimeInLock = 0;
             putMessageLock.unlock();
         }
 
@@ -763,8 +758,18 @@ public class CommitLog {
         PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
 
         // Statistics
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
         storeStatsService.getSinglePutMessageTopicTimesTotal(messageExtBatch.getTopic()).addAndGet(result.getMsgNum());
         storeStatsService.getSinglePutMessageTopicSizeTotal(messageExtBatch.getTopic()).addAndGet(result.getWroteBytes());
+        return putMessageResult;
+    }
+
+    public CompletableFuture<PutMessageResult> asyncPutMessages(final MessageExtBatch messageExtBatch) {
+        PutMessageResult putMessageResult = appendPutMessagesAndTrackStats(messageExtBatch);
+        if (!putMessageResult.isOk()) {
+            return CompletableFuture.completedFuture(putMessageResult);
+        }
+        AppendMessageResult result = putMessageResult.getAppendMessageResult();
 
         CompletableFuture<PutMessageStatus> flushOKFuture = submitFlushRequest(result, messageExtBatch);
         CompletableFuture<PutMessageStatus> replicaOKFuture = submitReplicaRequest(result, messageExtBatch);
@@ -820,15 +825,7 @@ public class CommitLog {
             }
         }
 
-        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
-        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
-            msg.setBornHostV6Flag();
-        }
-
-        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
-        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
-            msg.setStoreHostAddressV6Flag();
-        }
+        setIPV6Flags(msg);
 
         long elapsedTimeInLock = 0;
 
@@ -1018,104 +1015,12 @@ public class CommitLog {
     }
 
     public PutMessageResult putMessages(final MessageExtBatch messageExtBatch) {
-        messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
-        AppendMessageResult result;
-
-        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
-
-        final int tranType = MessageSysFlag.getTransactionValue(messageExtBatch.getSysFlag());
-
-        if (tranType != MessageSysFlag.TRANSACTION_NOT_TYPE) {
-            return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
+        setIPV6Flags(messageExtBatch);
+        PutMessageResult putMessageResult = appendPutMessagesAndTrackStats(messageExtBatch);
+        if (!putMessageResult.isOk()) {
+            return putMessageResult;
         }
-        if (messageExtBatch.getDelayTimeLevel() > 0) {
-            return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
-        }
-
-        InetSocketAddress bornSocketAddress = (InetSocketAddress) messageExtBatch.getBornHost();
-        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
-            messageExtBatch.setBornHostV6Flag();
-        }
-
-        InetSocketAddress storeSocketAddress = (InetSocketAddress) messageExtBatch.getStoreHost();
-        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
-            messageExtBatch.setStoreHostAddressV6Flag();
-        }
-
-        long elapsedTimeInLock = 0;
-        MappedFile unlockMappedFile = null;
-        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
-
-        //fine-grained lock instead of the coarse-grained
-        MessageExtBatchEncoder batchEncoder = batchEncoderThreadLocal.get();
-
-        messageExtBatch.setEncodedBuff(batchEncoder.encode(messageExtBatch));
-
-        putMessageLock.lock();
-        try {
-            long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
-            this.beginTimeInLock = beginLockTimestamp;
-
-            // Here settings are stored timestamp, in order to ensure an orderly
-            // global
-            messageExtBatch.setStoreTimestamp(beginLockTimestamp);
-
-            if (null == mappedFile || mappedFile.isFull()) {
-                mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
-            }
-            if (null == mappedFile) {
-                log.error("Create mapped file1 error, topic: {} clientAddr: {}", messageExtBatch.getTopic(), messageExtBatch.getBornHostString());
-                beginTimeInLock = 0;
-                return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null);
-            }
-
-            result = mappedFile.appendMessages(messageExtBatch, this.appendMessageCallback);
-            switch (result.getStatus()) {
-                case PUT_OK:
-                    break;
-                case END_OF_FILE:
-                    unlockMappedFile = mappedFile;
-                    // Create a new file, re-write the message
-                    mappedFile = this.mappedFileQueue.getLastMappedFile(0);
-                    if (null == mappedFile) {
-                        // XXX: warn and notify me
-                        log.error("Create mapped file2 error, topic: {} clientAddr: {}", messageExtBatch.getTopic(), messageExtBatch.getBornHostString());
-                        beginTimeInLock = 0;
-                        return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, result);
-                    }
-                    result = mappedFile.appendMessages(messageExtBatch, this.appendMessageCallback);
-                    break;
-                case MESSAGE_SIZE_EXCEEDED:
-                case PROPERTIES_SIZE_EXCEEDED:
-                    beginTimeInLock = 0;
-                    return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, result);
-                case UNKNOWN_ERROR:
-                    beginTimeInLock = 0;
-                    return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
-                default:
-                    beginTimeInLock = 0;
-                    return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, result);
-            }
-
-            elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
-            beginTimeInLock = 0;
-        } finally {
-            putMessageLock.unlock();
-        }
-
-        if (elapsedTimeInLock > 500) {
-            log.warn("[NOTIFYME]putMessages in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, messageExtBatch.getBody().length, result);
-        }
-
-        if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
-            this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
-        }
-
-        PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
-
-        // Statistics
-        storeStatsService.getSinglePutMessageTopicTimesTotal(messageExtBatch.getTopic()).addAndGet(result.getMsgNum());
-        storeStatsService.getSinglePutMessageTopicSizeTotal(messageExtBatch.getTopic()).addAndGet(result.getWroteBytes());
+        AppendMessageResult result = putMessageResult.getAppendMessageResult();
 
         handleDiskFlush(result, putMessageResult, messageExtBatch);
 
@@ -1229,6 +1134,18 @@ public class CommitLog {
         }
 
         return diff;
+    }
+
+    private void setIPV6Flags(MessageExt msg) {
+        InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
+        if (bornSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setBornHostV6Flag();
+        }
+
+        InetSocketAddress storeSocketAddress = (InetSocketAddress) msg.getStoreHost();
+        if (storeSocketAddress.getAddress() instanceof Inet6Address) {
+            msg.setStoreHostAddressV6Flag();
+        }
     }
 
     abstract class FlushCommitLogService extends ServiceThread {
