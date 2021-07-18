@@ -101,5 +101,21 @@ Adjusting instantiation of DefaultMQProducer and DefaultMQPushConsumer as follow
 ```
 
 
+### 4.4 Send and query message trace by mqadmin command
+- send message
+```shell
+./mqadmin sendMessage -m true --topic some-topic-name -n 127.0.0.1:9876 -p "your meesgae content"
+```
+- query trace
+```shell
+./mqadmin QueryMsgTraceById -n 127.0.0.1:9876 -i "some-message-id"
+```
+- query trace result
+```
+RocketMQLog:WARN No appenders could be found for logger (io.netty.util.internal.PlatformDependent0).
+RocketMQLog:WARN Please initialize the logger system properly.
+#Type      #ProducerGroup       #ClientHost          #SendTime            #CostTimes #Status
+Pub        1623305799667        xxx.xxx.xxx.xxx       2021-06-10 14:16:40  131ms      success
+```
 
 
