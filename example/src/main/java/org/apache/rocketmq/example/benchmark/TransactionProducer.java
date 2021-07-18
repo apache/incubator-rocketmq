@@ -69,6 +69,7 @@ public class TransactionProducer {
         config.batchId = commandLine.hasOption("b") ? Long.parseLong(commandLine.getOptionValue("b")) : System.currentTimeMillis();
         config.sendInterval = commandLine.hasOption("i") ? Integer.parseInt(commandLine.getOptionValue("i")) : 0;
         config.aclEnable = commandLine.hasOption('a') && Boolean.parseBoolean(commandLine.getOptionValue('a'));
+        config.msgTraceEnable = commandLine.hasOption('m') && Boolean.parseBoolean(commandLine.getOptionValue('m'));
 
         final ExecutorService sendThreadPool = Executors.newFixedThreadPool(config.threadCount);
 
@@ -123,8 +124,12 @@ public class TransactionProducer {
         }, 10000, 10000);
 
         final TransactionListener transactionCheckListener = new TransactionListenerImpl(statsBenchmark, config);
-        final TransactionMQProducer producer =
-            new TransactionMQProducer("benchmark_transaction_producer", config.aclEnable ? AclClient.getAclRPCHook() : null);
+        final TransactionMQProducer producer = new TransactionMQProducer(
+                null,
+                "benchmark_transaction_producer",
+                config.aclEnable ? AclClient.getAclRPCHook() : null,
+                config.msgTraceEnable,
+                null);
         producer.setInstanceName(Long.toString(System.currentTimeMillis()));
         producer.setTransactionListener(transactionCheckListener);
         producer.setDefaultTopicQueueNums(1000);
@@ -253,6 +258,10 @@ public class TransactionProducer {
         options.addOption(opt);
 
         opt = new Option("a", "aclEnable", true, "Acl Enable, Default: false");
+        opt.setRequired(false);
+        options.addOption(opt);
+
+        opt = new Option("m", "msgTraceEnable", true, "Message Trace Enable, Default: false");
         opt.setRequired(false);
         options.addOption(opt);
 
@@ -439,6 +448,7 @@ class TxSendConfig {
     long batchId;
     int sendInterval;
     boolean aclEnable;
+    boolean msgTraceEnable;
 }
 
 class LRUMap<K, V> extends LinkedHashMap<K, V> {

@@ -18,7 +18,6 @@ package org.apache.rocketmq.example.quickstart;
 
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
@@ -77,7 +76,7 @@ public class Producer {
                  * if you want to get the send result in a synchronize way, you can use this send method
                  * {@code
                  * SendResult sendResult = producer.send(msg);
-                 * System.out.println(sendResult.toString());
+                 * System.out.printf("%s%n", sendResult);
                  * }
                  */
 
