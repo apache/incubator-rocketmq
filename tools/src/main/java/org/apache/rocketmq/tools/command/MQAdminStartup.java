@@ -73,6 +73,7 @@ import org.apache.rocketmq.tools.command.stats.StatsAllSubCommand;
 import org.apache.rocketmq.tools.command.topic.AllocateMQSubCommand;
 import org.apache.rocketmq.tools.command.topic.DeleteTopicSubCommand;
 import org.apache.rocketmq.tools.command.topic.TopicClusterSubCommand;
+import org.apache.rocketmq.tools.command.topic.TopicConfigSubCommand;
 import org.apache.rocketmq.tools.command.topic.TopicListSubCommand;
 import org.apache.rocketmq.tools.command.topic.TopicRouteSubCommand;
 import org.apache.rocketmq.tools.command.topic.TopicStatusSubCommand;
@@ -156,6 +157,7 @@ public class MQAdminStartup {
         initCommand(new UpdateBrokerConfigSubCommand());
         initCommand(new UpdateTopicPermSubCommand());
 
+        initCommand(new TopicConfigSubCommand());
         initCommand(new TopicRouteSubCommand());
         initCommand(new TopicStatusSubCommand());
         initCommand(new TopicClusterSubCommand());
